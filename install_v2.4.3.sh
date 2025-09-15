@@ -244,6 +244,20 @@ UDP mode is more stable rather than tcp mode.
 	esac
 	
 	echo
+	
+	read -p "[-] Enable Web Interface? (yes/no): " WEB_INTERFACE
+	case $WEB_INTERFACE in
+        [Yy]*)
+        	WEB_INTERFACE="--web-portal"
+        	colorize yellow "Web Interface is enabled"
+       		 ;;
+   		*)
+       		WEB_INTERFACE=""
+       		colorize yellow "Web Interface is disabled"
+             ;;
+	esac
+	
+	echo
     
     IFS=',' read -ra ADDR_ARRAY <<< "$PEER_ADDRESSES"
     PROCESSED_ADDRESSES=()
@@ -277,7 +291,7 @@ Description=EasyMesh Network Service v2.4.3
 After=network.target
 
 [Service]
-ExecStart=/root/easytier/easytier-core -i $IP_ADDRESS $PEER_ADDRESS --hostname $HOSTNAME --network-secret $NETWORK_SECRET --default-protocol $DEFAULT_PROTOCOL $LISTENERS $MULTI_THREAD $ENCRYPTION_OPTION $IPV6_MODE
+ExecStart=/root/easytier/easytier-core -i $IP_ADDRESS $PEER_ADDRESS --hostname $HOSTNAME --network-secret $NETWORK_SECRET --default-protocol $DEFAULT_PROTOCOL $LISTENERS $MULTI_THREAD $ENCRYPTION_OPTION $IPV6_MODE $WEB_INTERFACE
 Restart=on-failure
 
 [Install]
@@ -290,6 +304,16 @@ EOF
     sudo systemctl start easymesh.service &> /dev/null
 
     colorize green "EasyMesh Network Service v2.4.3 Started.\n" bold
+    
+    # Show web interface info if enabled
+    if [[ -n $WEB_INTERFACE ]]; then
+        echo
+        colorize cyan "Web Interface Information:" bold
+        colorize yellow "Access the web interface at: http://localhost:11011" bold
+        colorize yellow "Or use your server's public IP: http://YOUR_SERVER_IP:11011" bold
+        echo
+    fi
+    
 	press_key
 }
 
@@ -393,6 +417,26 @@ show_network_secret() {
     read -p "	Press Enter to continue..."
    
     
+}
+
+show_web_interface_info() {
+	echo ''
+    if [[ -f $SERVICE_FILE ]]; then
+        WEB_PORTAL=$(grep -oP '--web-portal' $SERVICE_FILE)
+        
+        if [[ -n $WEB_PORTAL ]]; then
+            colorize cyan "	Web Interface is enabled" bold
+            colorize yellow "	Access the web interface at: http://localhost:11011" bold
+            colorize yellow "	Or use your server's public IP: http://YOUR_SERVER_IP:11011" bold
+        else
+            colorize red "	Web Interface is not enabled" bold
+            colorize yellow "	To enable web interface, reconfigure the network connection" bold
+        fi
+    else
+        colorize red "	EasyMesh service does not exists." bold
+    fi
+    echo ''
+    read -p "	Press Enter to continue..."
 }
 
 view_service_status() {
@@ -743,12 +787,13 @@ echo -e "   ╚═════════════════════�
     colorize cyan "	[3] Display Routes" 
     colorize reset "	[4] Peer-Center"
     colorize reset "	[5] Display Secret Key"
-    colorize reset "	[6] View Service Status"  
-    colorize reset "	[7] Set Watchdog [Auto-Restarter]"
-    colorize reset "	[8] Cron-jon setting"   
-    colorize yellow "	[9] Restart Service" 
-    colorize red "	[10] Remove Service" 
-    colorize magenta "	[11] Remove Core" 
+    colorize reset "	[6] Web Interface Info"
+    colorize reset "	[7] View Service Status"  
+    colorize reset "	[8] Set Watchdog [Auto-Restarter]"
+    colorize reset "	[9] Cron-jon setting"   
+    colorize yellow "	[10] Restart Service" 
+    colorize red "	[11] Remove Service" 
+    colorize magenta "	[12] Remove Core" 
     
     echo -e "	[0] Exit" 
     echo ''
@@ -766,12 +811,13 @@ read_option() {
         3) display_routes ;;
         4) peer_center ;;
         5) show_network_secret ;;
-        6) view_service_status ;;
-        7) set_watchdog ;;
-        8) set_cronjob ;;
-        9) restart_easymesh_service ;;
-        10) remove_easymesh_service ;;
-        11) remove_easymesh_core ;;
+        6) show_web_interface_info ;;
+        7) view_service_status ;;
+        8) set_watchdog ;;
+        9) set_cronjob ;;
+        10) restart_easymesh_service ;;
+        11) remove_easymesh_service ;;
+        12) remove_easymesh_core ;;
         0) exit 0 ;;
         *) colorize red "	Invalid option!" bold && sleep 1 ;;
     esac
