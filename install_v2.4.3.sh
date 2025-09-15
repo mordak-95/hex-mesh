@@ -731,62 +731,52 @@ remove_easymesh_core(){
 display_menu() {
     clear
     
-    # Modern Hex Mesh Banner
+    # Minimal Hex Mesh Banner
     echo ""
-    echo -e "${SEP}╔═════════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${SEP}║                                                                 ║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗   ${CYAN} ███╗   ███╗███████╗███████╗██╗  ██╗   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝   ${CYAN} ████╗ ████║██╔════╝██╔════╝██║  ██║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝    ${CYAN} ██╔████╔██║█████╗  ███████╗███████║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗    ${CYAN} ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗   ${CYAN} ██║ ╚═╝ ██║███████╗███████║██║  ██║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ${CYAN} ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ${SEP}║${RESET}"
-    echo -e "${SEP}║                                                                 ║${RESET}"
-    echo -e "${SEP}╚═════════════════════════════════════════════════════════════════╝${RESET}"
-    echo -e "${GRAY} Version: 2.4.3 | GitHub: github.com/mordak-95/hex-mesh${RESET}"
-    echo -e "${GRAY} Advanced VPN Mesh Network Solution${RESET}\n"
-    
-    # Status indicator
-    echo -e "${SEP}┌─ Status ─────────────────────────────────────────────────┐${RESET}"
-    echo -e "${SEP}│  $(check_core_status)${SEP}│${RESET}"
-    echo -e "${SEP}└─────────────────────────────────────────────────────────┘${RESET}"
-    
+    echo -e "${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗    ███╗   ███╗███████╗███████╗██╗  ██╗${RESET}"
+    echo -e "${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝    ████╗ ████║██╔════╝██╔════╝██║  ██║${RESET}"
+    echo -e "${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝     ██╔████╔██║█████╗  ███████╗███████║${RESET}"
+    echo -e "${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗     ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║${RESET}"
+    echo -e "${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗    ██║ ╚═╝ ██║███████╗███████║██║  ██║${RESET}"
+    echo -e "${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝${RESET}"
     echo ""
-    echo -e "${BOLD}${CYAN}╭─ Network Management ────────────────────────────────────────╮${RESET}"
-    echo -e "${GREEN}  ${BOLD}[1]${RESET} ${GREEN}Connect to Mesh Network${RESET}           ${GRAY}• Setup new connection${RESET}"
-    echo -e "${BLUE}  ${BOLD}[2]${RESET} ${BLUE}Display Peers${RESET}                    ${GRAY}• View connected nodes${RESET}"
-    echo -e "${CYAN}  ${BOLD}[3]${RESET} ${CYAN}Display Routes${RESET}                   ${GRAY}• Show network topology${RESET}"
-    echo -e "${MAGENTA}  ${BOLD}[4]${RESET} ${MAGENTA}Peer Center${RESET}                   ${GRAY}• Advanced peer management${RESET}"
-    echo -e "${SEP}╰─────────────────────────────────────────────────────────╯${RESET}"
-    
+    echo -e "${GRAY}Version 2.4.3${RESET} ${SEP}•${RESET} ${GRAY}github.com/mordak-95/hex-mesh${RESET}"
     echo ""
-    echo -e "${BOLD}${YELLOW}╭─ Service Management ────────────────────────────────────────╮${RESET}"
-    echo -e "${GRAY}  ${BOLD}[5]${RESET} ${GRAY}Display Secret Key${RESET}               ${GRAY}• Show network credentials${RESET}"
-    echo -e "${GRAY}  ${BOLD}[6]${RESET} ${GRAY}View Service Status${RESET}              ${GRAY}• Check service health${RESET}"
-    echo -e "${YELLOW}  ${BOLD}[7]${RESET} ${YELLOW}Set Watchdog${RESET}                   ${GRAY}• Auto-restart on failure${RESET}"
-    echo -e "${GRAY}  ${BOLD}[8]${RESET} ${GRAY}Cron Job Settings${RESET}               ${GRAY}• Schedule service restarts${RESET}"
-    echo -e "${YELLOW}  ${BOLD}[9]${RESET} ${YELLOW}Restart Service${RESET}                ${GRAY}• Manual service restart${RESET}"
-    echo -e "${SEP}╰─────────────────────────────────────────────────────────╯${RESET}"
     
+    # Status
+    echo -e "${SEP}┌─ Status: $(check_core_status)${SEP}┐${RESET}"
     echo ""
-    echo -e "${BOLD}${RED}╭─ Advanced Operations ────────────────────────────────────────╮${RESET}"
-    echo -e "${RED}  ${BOLD}[10]${RESET} ${RED}Remove Service${RESET}                  ${GRAY}• Stop and disable service${RESET}"
-    echo -e "${MAGENTA}  ${BOLD}[11]${RESET} ${MAGENTA}Remove Core${RESET}                    ${GRAY}• Uninstall Hex Mesh core${RESET}"
-    echo -e "${SEP}╰─────────────────────────────────────────────────────────╯${RESET}"
     
+    # Minimal Menu
+    echo -e "${BOLD}${CYAN}Network${RESET}"
+    echo -e "  ${GREEN}[1]${RESET} Connect    ${GRAY}•${RESET} ${GRAY}Setup mesh network${RESET}"
+    echo -e "  ${BLUE}[2]${RESET} Peers       ${GRAY}•${RESET} ${GRAY}View connections${RESET}"
+    echo -e "  ${CYAN}[3]${RESET} Routes      ${GRAY}•${RESET} ${GRAY}Network topology${RESET}"
+    echo -e "  ${MAGENTA}[4]${RESET} Center     ${GRAY}•${RESET} ${GRAY}Peer management${RESET}"
     echo ""
-    echo -e "${GRAY}  ${BOLD}[0]${RESET} ${GRAY}Exit${RESET}                              ${GRAY}• Close application${RESET}"
+    
+    echo -e "${BOLD}${YELLOW}Service${RESET}"
+    echo -e "  ${GRAY}[5]${RESET} Secret      ${GRAY}•${RESET} ${GRAY}Show credentials${RESET}"
+    echo -e "  ${GRAY}[6]${RESET} Status      ${GRAY}•${RESET} ${GRAY}Service health${RESET}"
+    echo -e "  ${YELLOW}[7]${RESET} Watchdog   ${GRAY}•${RESET} ${GRAY}Auto-restart${RESET}"
+    echo -e "  ${GRAY}[8]${RESET} Cron        ${GRAY}•${RESET} ${GRAY}Schedule tasks${RESET}"
+    echo -e "  ${YELLOW}[9]${RESET} Restart    ${GRAY}•${RESET} ${GRAY}Manual restart${RESET}"
+    echo ""
+    
+    echo -e "${BOLD}${RED}Advanced${RESET}"
+    echo -e "  ${RED}[10]${RESET} Remove      ${GRAY}•${RESET} ${GRAY}Stop service${RESET}"
+    echo -e "  ${MAGENTA}[11]${RESET} Uninstall  ${GRAY}•${RESET} ${GRAY}Remove core${RESET}"
+    echo ""
+    
+    echo -e "${GRAY}[0] Exit${RESET}"
     echo ""
 }
 
 
 # Function to read user input
 read_option() {
-    echo ""
-    echo -e "${SEP}┌─ Input ───────────────────────────────────────────────────┐${RESET}"
-    echo -en "${SEP}│  ${BOLD}${CYAN}Enter your choice:${RESET} "
+    echo -en "${BOLD}${CYAN}→${RESET} "
     read -p '' choice 
-    echo -e "${SEP}└─────────────────────────────────────────────────────────┘${RESET}"
     
     case $choice in
         1) connect_network_pool ;;
@@ -802,15 +792,12 @@ read_option() {
         11) remove_easymesh_core ;;
         0) 
             echo ""
-            echo -e "${GRAY}Thank you for using Hex Mesh!${RESET}"
-            echo -e "${GRAY}Visit: github.com/mordak-95/hex-mesh${RESET}"
-            echo ""
+            echo -e "${GRAY}Thanks for using Hex Mesh!${RESET}"
             exit 0 
             ;;
         *) 
-            echo ""
-            echo -e "${RED}${BOLD}✗ Invalid option!${RESET} ${GRAY}Please select a valid number.${RESET}"
-            sleep 2 
+            echo -e "${RED}✗ Invalid option${RESET}"
+            sleep 1 
             ;;
     esac
 }
