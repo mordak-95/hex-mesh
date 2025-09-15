@@ -245,14 +245,14 @@ UDP mode is more stable rather than tcp mode.
 	
 	echo
 	
-	read -p "[-] Enable Web Interface? (yes/no): " WEB_INTERFACE
-	case $WEB_INTERFACE in
+	read -p "[-] Enable Web Interface? (yes/no): " ENABLE_WEB
+	case $ENABLE_WEB in
         [Yy]*)
-        	WEB_INTERFACE="--web-portal"
-        	colorize yellow "Web Interface is enabled"
+        	ENABLE_WEB="yes"
+        	colorize yellow "Web Interface will be enabled on port 9090"
        		 ;;
    		*)
-       		WEB_INTERFACE=""
+       		ENABLE_WEB="no"
        		colorize yellow "Web Interface is disabled"
              ;;
 	esac
@@ -291,7 +291,7 @@ Description=EasyMesh Network Service v2.4.3
 After=network.target
 
 [Service]
-ExecStart=/root/easytier/easytier-core -i $IP_ADDRESS $PEER_ADDRESS --hostname $HOSTNAME --network-secret $NETWORK_SECRET --default-protocol $DEFAULT_PROTOCOL $LISTENERS $MULTI_THREAD $ENCRYPTION_OPTION $IPV6_MODE $WEB_INTERFACE
+ExecStart=/root/easytier/easytier-core -i $IP_ADDRESS $PEER_ADDRESS --hostname $HOSTNAME --network-secret $NETWORK_SECRET --default-protocol $DEFAULT_PROTOCOL $LISTENERS $MULTI_THREAD $ENCRYPTION_OPTION $IPV6_MODE
 Restart=on-failure
 
 [Install]
@@ -305,18 +305,51 @@ EOF
 
     colorize green "EasyMesh Network Service v2.4.3 Started.\n" bold
     
-    # Show web interface info if enabled
-    if [[ -n $WEB_INTERFACE ]]; then
-        echo
-        colorize cyan "Web Interface Information:" bold
-        colorize yellow "Access the web interface at: http://localhost:11011" bold
-        colorize yellow "Or use your server's public IP: http://YOUR_SERVER_IP:11011" bold
-        echo
+    # Start web interface if enabled
+    if [[ "$ENABLE_WEB" == "yes" ]]; then
+        start_web_interface
     fi
     
 	press_key
 }
 
+start_web_interface() {
+    colorize yellow "Starting Web Interface on port 9090...\n" bold
+    
+    # Create web interface service file
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    
+cat > $WEB_SERVICE_FILE <<EOF
+[Unit]
+Description=EasyMesh Web Interface v2.4.3
+After=network.target easymesh.service
+Requires=easymesh.service
+
+[Service]
+ExecStart=/root/easytier/easytier-web-embed --port 9090
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Reload systemd, enable and start the web service
+    sudo systemctl daemon-reload &> /dev/null
+    sudo systemctl enable easymesh-web.service &> /dev/null
+    sudo systemctl start easymesh-web.service &> /dev/null
+    
+    if [[ $? -eq 0 ]]; then
+        colorize green "Web Interface started successfully on port 9090\n" bold
+        echo
+        colorize cyan "Web Interface Information:" bold
+        colorize yellow "Access the web interface at: http://localhost:9090" bold
+        colorize yellow "Or use your server's public IP: http://YOUR_SERVER_IP:9090" bold
+        echo
+    else
+        colorize red "Failed to start Web Interface\n" bold
+    fi
+}
 
 display_peers()
 {	
@@ -346,6 +379,19 @@ restart_easymesh_service() {
     else
         colorize red "	Failed to restart EasyMesh service." bold
     fi
+    
+    # Also restart web service if exists
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    if [[ -f $WEB_SERVICE_FILE ]]; then
+        colorize yellow "	Restarting EasyMesh Web service...\n" bold
+        sudo systemctl restart easymesh-web.service &> /dev/null
+        if [[ $? -eq 0 ]]; then
+            colorize green "	EasyMesh Web service restarted successfully." bold
+        else
+            colorize red "	Failed to restart EasyMesh Web service." bold
+        fi
+    fi
+    
     echo ''
 	 read -p "	Press Enter to continue..."
 }
@@ -357,6 +403,17 @@ remove_easymesh_service() {
 		 sleep 1
 		 return 1
 	fi
+    
+    # Stop and remove web service if exists
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    if [[ -f $WEB_SERVICE_FILE ]]; then
+        colorize yellow "	Stopping EasyMesh Web service..." bold
+        sudo systemctl stop easymesh-web.service &> /dev/null
+        sudo systemctl disable easymesh-web.service &> /dev/null
+        sudo rm $WEB_SERVICE_FILE &> /dev/null
+        colorize green "	EasyMesh Web service removed successfully.\n"
+    fi
+    
     colorize yellow "	Stopping EasyMesh service..." bold
     sudo systemctl stop easymesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
@@ -421,19 +478,20 @@ show_network_secret() {
 
 show_web_interface_info() {
 	echo ''
-    if [[ -f $SERVICE_FILE ]]; then
-        WEB_PORTAL=$(grep -oP '--web-portal' $SERVICE_FILE)
-        
-        if [[ -n $WEB_PORTAL ]]; then
-            colorize cyan "	Web Interface is enabled" bold
-            colorize yellow "	Access the web interface at: http://localhost:11011" bold
-            colorize yellow "	Or use your server's public IP: http://YOUR_SERVER_IP:11011" bold
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    
+    if [[ -f $WEB_SERVICE_FILE ]]; then
+        if systemctl is-active --quiet "easymesh-web.service"; then
+            colorize cyan "	Web Interface is running" bold
+            colorize yellow "	Access the web interface at: http://localhost:9090" bold
+            colorize yellow "	Or use your server's public IP: http://YOUR_SERVER_IP:9090" bold
         else
-            colorize red "	Web Interface is not enabled" bold
-            colorize yellow "	To enable web interface, reconfigure the network connection" bold
+            colorize red "	Web Interface service exists but is not running" bold
+            colorize yellow "	Try restarting the service" bold
         fi
     else
-        colorize red "	EasyMesh service does not exists." bold
+        colorize red "	Web Interface is not enabled" bold
+        colorize yellow "	To enable web interface, reconfigure the network connection" bold
     fi
     echo ''
     read -p "	Press Enter to continue..."
@@ -446,7 +504,18 @@ view_service_status() {
 		 return 1
 	fi
 	clear
+    colorize cyan "EasyMesh Core Service Status:" bold
     sudo systemctl status easymesh.service
+    
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    if [[ -f $WEB_SERVICE_FILE ]]; then
+        echo
+        colorize cyan "EasyMesh Web Service Status:" bold
+        sudo systemctl status easymesh-web.service
+    fi
+    
+    echo
+    read -p "Press Enter to continue..."
 }
 
 set_watchdog(){
