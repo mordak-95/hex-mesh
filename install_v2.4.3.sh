@@ -497,6 +497,91 @@ show_web_interface_info() {
     read -p "	Press Enter to continue..."
 }
 
+manage_web_interface() {
+    clear
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    
+    echo
+    colorize cyan "Web Interface Management" bold
+    echo "---------------------------------------------"
+    echo
+    
+    if [[ -f $WEB_SERVICE_FILE ]]; then
+        if systemctl is-active --quiet "easymesh-web.service"; then
+            colorize green "1) Stop Web Interface" bold
+            colorize yellow "2) Restart Web Interface"
+            colorize reset "3) Back"
+            echo
+            read -p "Enter your choice: " web_choice
+            case $web_choice in
+                1) 
+                    colorize yellow "Stopping Web Interface..." bold
+                    sudo systemctl stop easymesh-web.service &> /dev/null
+                    if [[ $? -eq 0 ]]; then
+                        colorize green "Web Interface stopped successfully." bold
+                    else
+                        colorize red "Failed to stop Web Interface." bold
+                    fi
+                    ;;
+                2)
+                    colorize yellow "Restarting Web Interface..." bold
+                    sudo systemctl restart easymesh-web.service &> /dev/null
+                    if [[ $? -eq 0 ]]; then
+                        colorize green "Web Interface restarted successfully." bold
+                    else
+                        colorize red "Failed to restart Web Interface." bold
+                    fi
+                    ;;
+                3) return 0 ;;
+                *) colorize red "Invalid option!" bold ;;
+            esac
+        else
+            colorize green "1) Start Web Interface" bold
+            colorize yellow "2) Remove Web Interface"
+            colorize reset "3) Back"
+            echo
+            read -p "Enter your choice: " web_choice
+            case $web_choice in
+                1) 
+                    colorize yellow "Starting Web Interface..." bold
+                    sudo systemctl start easymesh-web.service &> /dev/null
+                    if [[ $? -eq 0 ]]; then
+                        colorize green "Web Interface started successfully." bold
+                        colorize yellow "Access at: http://localhost:9090" bold
+                    else
+                        colorize red "Failed to start Web Interface." bold
+                    fi
+                    ;;
+                2)
+                    colorize yellow "Removing Web Interface..." bold
+                    sudo systemctl stop easymesh-web.service &> /dev/null
+                    sudo systemctl disable easymesh-web.service &> /dev/null
+                    sudo rm $WEB_SERVICE_FILE &> /dev/null
+                    sudo systemctl daemon-reload &> /dev/null
+                    colorize green "Web Interface removed successfully." bold
+                    ;;
+                3) return 0 ;;
+                *) colorize red "Invalid option!" bold ;;
+            esac
+        fi
+    else
+        colorize green "1) Create Web Interface" bold
+        colorize reset "2) Back"
+        echo
+        read -p "Enter your choice: " web_choice
+        case $web_choice in
+            1) 
+                start_web_interface
+                ;;
+            2) return 0 ;;
+            *) colorize red "Invalid option!" bold ;;
+        esac
+    fi
+    
+    echo
+    read -p "Press Enter to continue..."
+}
+
 view_service_status() {
 	if [[ ! -f $SERVICE_FILE ]]; then
 		 colorize red "	EasyMesh service does not exists." bold
@@ -857,12 +942,13 @@ echo -e "   ╚═════════════════════�
     colorize reset "	[4] Peer-Center"
     colorize reset "	[5] Display Secret Key"
     colorize reset "	[6] Web Interface Info"
-    colorize reset "	[7] View Service Status"  
-    colorize reset "	[8] Set Watchdog [Auto-Restarter]"
-    colorize reset "	[9] Cron-jon setting"   
-    colorize yellow "	[10] Restart Service" 
-    colorize red "	[11] Remove Service" 
-    colorize magenta "	[12] Remove Core" 
+    colorize reset "	[7] Start/Stop Web Interface"
+    colorize reset "	[8] View Service Status"  
+    colorize reset "	[9] Set Watchdog [Auto-Restarter]"
+    colorize reset "	[10] Cron-jon setting"   
+    colorize yellow "	[11] Restart Service" 
+    colorize red "	[12] Remove Service" 
+    colorize magenta "	[13] Remove Core" 
     
     echo -e "	[0] Exit" 
     echo ''
@@ -881,12 +967,13 @@ read_option() {
         4) peer_center ;;
         5) show_network_secret ;;
         6) show_web_interface_info ;;
-        7) view_service_status ;;
-        8) set_watchdog ;;
-        9) set_cronjob ;;
-        10) restart_easymesh_service ;;
-        11) remove_easymesh_service ;;
-        12) remove_easymesh_core ;;
+        7) manage_web_interface ;;
+        8) view_service_status ;;
+        9) set_watchdog ;;
+        10) set_cronjob ;;
+        11) restart_easymesh_service ;;
+        12) remove_easymesh_service ;;
+        13) remove_easymesh_core ;;
         0) exit 0 ;;
         *) colorize red "	Invalid option!" bold && sleep 1 ;;
     esac
