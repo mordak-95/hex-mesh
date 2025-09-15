@@ -337,12 +337,13 @@ Wants=easymesh.service
 
 [Service]
 Type=simple
-ExecStart=/root/easytier/easytier-web-embed --port 9090
+ExecStart=/root/easytier/easytier-web-embed
 Restart=on-failure
 RestartSec=5
 User=root
 StandardOutput=journal
 StandardError=journal
+Environment=PORT=9090
 
 [Install]
 WantedBy=multi-user.target
@@ -681,7 +682,7 @@ debug_web_interface() {
     # Try to run web-embed manually
     colorize yellow "7. Testing manual execution..." bold
     echo "   Trying to run: /root/easytier/easytier-web-embed --help"
-    timeout 5 /root/easytier/easytier-web-embed --help 2>&1 || echo "   Command timed out or failed"
+    timeout 10 /root/easytier/easytier-web-embed --help 2>&1 || echo "   Command timed out or failed"
     echo
     
     # Check dependencies
@@ -701,6 +702,54 @@ debug_web_interface() {
     
     echo
     colorize cyan "Debug completed. Press Enter to continue..." bold
+    read -p ""
+}
+
+test_web_embed_parameters() {
+    clear
+    echo
+    colorize cyan "Testing easytier-web-embed Parameters" bold
+    echo "============================================="
+    echo
+    
+    if [[ ! -f "/root/easytier/easytier-web-embed" ]]; then
+        colorize red "easytier-web-embed file not found!" bold
+        return 1
+    fi
+    
+    colorize yellow "Testing different parameter combinations..." bold
+    echo
+    
+    # Test 1: No parameters
+    colorize yellow "1. Testing with no parameters:" bold
+    timeout 3 /root/easytier/easytier-web-embed 2>&1 | head -5 || echo "   Command timed out or failed"
+    echo
+    
+    # Test 2: --help
+    colorize yellow "2. Testing --help:" bold
+    timeout 5 /root/easytier/easytier-web-embed --help 2>&1 || echo "   Command timed out or failed"
+    echo
+    
+    # Test 3: Different port syntax
+    colorize yellow "3. Testing different port syntaxes:" bold
+    echo "   Testing: --port 9090"
+    timeout 3 /root/easytier/easytier-web-embed --port 9090 2>&1 | head -3 || echo "   Failed"
+    echo "   Testing: -p 9090"
+    timeout 3 /root/easytier/easytier-web-embed -p 9090 2>&1 | head -3 || echo "   Failed"
+    echo "   Testing: --listen 9090"
+    timeout 3 /root/easytier/easytier-web-embed --listen 9090 2>&1 | head -3 || echo "   Failed"
+    echo "   Testing: --bind 0.0.0.0:9090"
+    timeout 3 /root/easytier/easytier-web-embed --bind 0.0.0.0:9090 2>&1 | head -3 || echo "   Failed"
+    echo
+    
+    # Test 4: Environment variable
+    colorize yellow "4. Testing with environment variable:" bold
+    echo "   Testing: PORT=9090 ./easytier-web-embed"
+    timeout 3 env PORT=9090 /root/easytier/easytier-web-embed 2>&1 | head -3 || echo "   Failed"
+    echo
+    
+    echo
+    colorize cyan "Parameter testing completed. Press Enter to continue..." bold
     read -p ""
 }
 
@@ -1067,11 +1116,12 @@ echo -e "   ╚═════════════════════�
     colorize reset "	[7] Start/Stop Web Interface"
     colorize reset "	[8] View Service Status"  
     colorize reset "	[9] Debug Web Interface"
-    colorize reset "	[10] Set Watchdog [Auto-Restarter]"
-    colorize reset "	[11] Cron-jon setting"   
-    colorize yellow "	[12] Restart Service" 
-    colorize red "	[13] Remove Service" 
-    colorize magenta "	[14] Remove Core" 
+    colorize reset "	[10] Test Web Parameters"
+    colorize reset "	[11] Set Watchdog [Auto-Restarter]"
+    colorize reset "	[12] Cron-jon setting"   
+    colorize yellow "	[13] Restart Service" 
+    colorize red "	[14] Remove Service" 
+    colorize magenta "	[15] Remove Core" 
     
     echo -e "	[0] Exit" 
     echo ''
@@ -1093,11 +1143,12 @@ read_option() {
         7) manage_web_interface ;;
         8) view_service_status ;;
         9) debug_web_interface ;;
-        10) set_watchdog ;;
-        11) set_cronjob ;;
-        12) restart_easymesh_service ;;
-        13) remove_easymesh_service ;;
-        14) remove_easymesh_core ;;
+        10) test_web_embed_parameters ;;
+        11) set_watchdog ;;
+        12) set_cronjob ;;
+        13) restart_easymesh_service ;;
+        14) remove_easymesh_service ;;
+        15) remove_easymesh_core ;;
         0) exit 0 ;;
         *) colorize red "	Invalid option!" bold && sleep 1 ;;
     esac
