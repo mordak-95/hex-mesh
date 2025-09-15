@@ -85,7 +85,7 @@ install_easytier() {
     if [ -d "$DEST_DIR" ]; then    
         # Check if the files exist
         if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ] && [ -f "$DEST_DIR/$FILE3" ] && [ -f "$DEST_DIR/$FILE4" ]; then
-            colorize green "EasyMesh Core v2.4.3 Installed" bold
+            colorize green "Hex Mesh Core v2.4.3 Installed" bold
             return 0
         fi
     fi
@@ -107,7 +107,7 @@ install_easytier() {
 
 
     mkdir -p $DEST_DIR &> /dev/null
-    colorize yellow "Downloading EasyMesh Core v2.4.3...\n"
+    colorize yellow "Downloading Hex Mesh Core v2.4.3...\n"
     curl -Ls "$URL/easytier-cli" -o "$DEST_DIR/easytier-cli"
     curl -Ls "$URL/easytier-core" -o "$DEST_DIR/easytier-core"
     curl -Ls "$URL/easytier-web" -o "$DEST_DIR/easytier-web"
@@ -119,11 +119,11 @@ install_easytier() {
     	chmod +x "$DEST_DIR/easytier-core"
     	chmod +x "$DEST_DIR/easytier-web"
     	chmod +x "$DEST_DIR/easytier-web-embed"
-        colorize green "EasyMesh Core v2.4.3 Installed Successfully...\n" bold
+        colorize green "Hex Mesh Core v2.4.3 Installed Successfully...\n" bold
         sleep 1
         return 0
     else
-        colorize red "Failed to install EasyMesh Core v2.4.3...\n" bold
+        colorize red "Failed to install Hex Mesh Core v2.4.3...\n" bold
         exit 1
     fi
 }
@@ -139,7 +139,7 @@ generate_random_secret() {
 
 #Var
 EASY_CLIENT='/root/easytier/easytier-cli'
-SERVICE_FILE="/etc/systemd/system/easymesh.service"
+SERVICE_FILE="/etc/systemd/system/hexmesh.service"
     
 connect_network_pool(){
 	clear
@@ -244,20 +244,6 @@ UDP mode is more stable rather than tcp mode.
 	esac
 	
 	echo
-	
-	read -p "[-] Enable Web Interface? (yes/no): " ENABLE_WEB
-	case $ENABLE_WEB in
-        [Yy]*)
-        	ENABLE_WEB="yes"
-        	colorize yellow "Web Interface will be enabled on port 9090"
-       		 ;;
-   		*)
-       		ENABLE_WEB="no"
-       		colorize yellow "Web Interface is disabled"
-             ;;
-	esac
-	
-	echo
     
     IFS=',' read -ra ADDR_ARRAY <<< "$PEER_ADDRESSES"
     PROCESSED_ADDRESSES=()
@@ -283,11 +269,11 @@ UDP mode is more stable rather than tcp mode.
     
     LISTENERS="--listeners ${DEFAULT_PROTOCOL}://[::]:${PORT} ${DEFAULT_PROTOCOL}://0.0.0.0:${PORT}"
     
-    SERVICE_FILE="/etc/systemd/system/easymesh.service"
+    SERVICE_FILE="/etc/systemd/system/hexmesh.service"
     
 cat > $SERVICE_FILE <<EOF
 [Unit]
-Description=EasyMesh Network Service v2.4.3
+Description=Hex Mesh Network Service v2.4.3
 After=network.target
 
 [Service]
@@ -300,81 +286,13 @@ EOF
 
     # Reload systemd, enable and start the service
     sudo systemctl daemon-reload &> /dev/null
-    sudo systemctl enable easymesh.service &> /dev/null
-    sudo systemctl start easymesh.service &> /dev/null
+    sudo systemctl enable hexmesh.service &> /dev/null
+    sudo systemctl start hexmesh.service &> /dev/null
 
-    colorize green "EasyMesh Network Service v2.4.3 Started.\n" bold
-    
-    # Start web interface if enabled
-    if [[ "$ENABLE_WEB" == "yes" ]]; then
-        start_web_interface
-    fi
-    
+    colorize green "Hex Mesh Network Service v2.4.3 Started.\n" bold
 	press_key
 }
 
-start_web_interface() {
-    colorize yellow "Starting Web Interface on port 9090...\n" bold
-    
-    # Check if easytier-web-embed exists
-    if [[ ! -f "/root/easytier/easytier-web-embed" ]]; then
-        colorize red "easytier-web-embed file not found!\n" bold
-        colorize yellow "Please make sure you have installed EasyMesh Core v2.4.3\n" bold
-        return 1
-    fi
-    
-    # Make sure it's executable
-    chmod +x /root/easytier/easytier-web-embed
-    
-    # Create web interface service file
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    
-cat > $WEB_SERVICE_FILE <<EOF
-[Unit]
-Description=EasyMesh Web Interface v2.4.3
-After=network.target
-Wants=easymesh.service
-
-[Service]
-Type=simple
-ExecStart=/root/easytier/easytier-web-embed
-Restart=on-failure
-RestartSec=5
-User=root
-StandardOutput=journal
-StandardError=journal
-Environment=PORT=9090
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Reload systemd, enable and start the web service
-    colorize yellow "Reloading systemd daemon..." bold
-    sudo systemctl daemon-reload
-    
-    colorize yellow "Enabling web service..." bold
-    sudo systemctl enable easymesh-web.service
-    
-    colorize yellow "Starting web service..." bold
-    sudo systemctl start easymesh-web.service
-    
-    # Wait a moment and check status
-    sleep 2
-    
-    if systemctl is-active --quiet "easymesh-web.service"; then
-        colorize green "Web Interface started successfully on port 9090\n" bold
-        echo
-        colorize cyan "Web Interface Information:" bold
-        colorize yellow "Access the web interface at: http://localhost:9090" bold
-        colorize yellow "Or use your server's public IP: http://YOUR_SERVER_IP:9090" bold
-        echo
-    else
-        colorize red "Failed to start Web Interface\n" bold
-        colorize yellow "Checking logs for errors...\n" bold
-        journalctl -u easymesh-web.service --no-pager -n 10
-    fi
-}
 
 display_peers()
 {	
@@ -393,30 +311,17 @@ peer_center(){
 restart_easymesh_service() {
 	echo ''
 	if [[ ! -f $SERVICE_FILE ]]; then
-		colorize red "	EasyMesh service does not exists." bold
+		colorize red "	Hex Mesh service does not exists." bold
 		sleep 1
 		return 1
 	fi
-    colorize yellow "	Restarting EasyMesh service...\n" bold
-    sudo systemctl restart easymesh.service &> /dev/null
+    colorize yellow "	Restarting Hex Mesh service...\n" bold
+    sudo systemctl restart hexmesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        colorize green "	EasyMesh service restarted successfully." bold
+        colorize green "	Hex Mesh service restarted successfully." bold
     else
-        colorize red "	Failed to restart EasyMesh service." bold
+        colorize red "	Failed to restart Hex Mesh service." bold
     fi
-    
-    # Also restart web service if exists
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    if [[ -f $WEB_SERVICE_FILE ]]; then
-        colorize yellow "	Restarting EasyMesh Web service...\n" bold
-        sudo systemctl restart easymesh-web.service &> /dev/null
-        if [[ $? -eq 0 ]]; then
-            colorize green "	EasyMesh Web service restarted successfully." bold
-        else
-            colorize red "	Failed to restart EasyMesh Web service." bold
-        fi
-    fi
-    
     echo ''
 	 read -p "	Press Enter to continue..."
 }
@@ -428,43 +333,32 @@ remove_easymesh_service() {
 		 sleep 1
 		 return 1
 	fi
-    
-    # Stop and remove web service if exists
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    if [[ -f $WEB_SERVICE_FILE ]]; then
-        colorize yellow "	Stopping EasyMesh Web service..." bold
-        sudo systemctl stop easymesh-web.service &> /dev/null
-        sudo systemctl disable easymesh-web.service &> /dev/null
-        sudo rm $WEB_SERVICE_FILE &> /dev/null
-        colorize green "	EasyMesh Web service removed successfully.\n"
-    fi
-    
-    colorize yellow "	Stopping EasyMesh service..." bold
-    sudo systemctl stop easymesh.service &> /dev/null
+    colorize yellow "	Stopping Hex Mesh service..." bold
+    sudo systemctl stop hexmesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        colorize green "	EasyMesh service stopped successfully.\n"
+        colorize green "	Hex Mesh service stopped successfully.\n"
     else
-        colorize red "	Failed to stop EasyMesh service.\n"
+        colorize red "	Failed to stop Hex Mesh service.\n"
         sleep 2
         return 1
     fi
 
-    colorize yellow "	Disabling EasyMesh service..." bold
-    sudo systemctl disable easymesh.service &> /dev/null
+    colorize yellow "	Disabling Hex Mesh service..." bold
+    sudo systemctl disable hexmesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        colorize green "	EasyMesh service disabled successfully.\n"
+        colorize green "	Hex Mesh service disabled successfully.\n"
     else
-        colorize red "	Failed to disable EasyMesh service.\n"
+        colorize red "	Failed to disable Hex Mesh service.\n"
         sleep 2
         return 1
     fi
 
-    colorize yellow "	Removing EasyMesh service..." bold
-    sudo rm /etc/systemd/system/easymesh.service &> /dev/null
+    colorize yellow "	Removing Hex Mesh service..." bold
+    sudo rm /etc/systemd/system/hexmesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        colorize green "	EasyMesh service removed successfully.\n"
+        colorize green "	Hex Mesh service removed successfully.\n"
     else
-        colorize red "	Failed to remove EasyMesh service.\n"
+        colorize red "	Failed to remove Hex Mesh service.\n"
         sleep 2
         return 1
     fi
@@ -493,7 +387,7 @@ show_network_secret() {
             colorize red "	Network Secret key not found" bold
         fi
     else
-        colorize red "	EasyMesh service does not exists." bold
+        colorize red "	Hex Mesh service does not exists." bold
     fi
     echo ''
     read -p "	Press Enter to continue..."
@@ -501,277 +395,14 @@ show_network_secret() {
     
 }
 
-show_web_interface_info() {
-	echo ''
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    
-    if [[ -f $WEB_SERVICE_FILE ]]; then
-        if systemctl is-active --quiet "easymesh-web.service"; then
-            colorize cyan "	Web Interface is running" bold
-            colorize yellow "	Access the web interface at: http://localhost:9090" bold
-            colorize yellow "	Or use your server's public IP: http://YOUR_SERVER_IP:9090" bold
-        else
-            colorize red "	Web Interface service exists but is not running" bold
-            colorize yellow "	Try restarting the service" bold
-        fi
-    else
-        colorize red "	Web Interface is not enabled" bold
-        colorize yellow "	To enable web interface, reconfigure the network connection" bold
-    fi
-    echo ''
-    read -p "	Press Enter to continue..."
-}
-
-manage_web_interface() {
-    clear
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    
-    echo
-    colorize cyan "Web Interface Management" bold
-    echo "---------------------------------------------"
-    echo
-    
-    if [[ -f $WEB_SERVICE_FILE ]]; then
-        if systemctl is-active --quiet "easymesh-web.service"; then
-            colorize green "1) Stop Web Interface" bold
-            colorize yellow "2) Restart Web Interface"
-            colorize reset "3) Back"
-            echo
-            read -p "Enter your choice: " web_choice
-            case $web_choice in
-                1) 
-                    colorize yellow "Stopping Web Interface..." bold
-                    sudo systemctl stop easymesh-web.service &> /dev/null
-                    if [[ $? -eq 0 ]]; then
-                        colorize green "Web Interface stopped successfully." bold
-                    else
-                        colorize red "Failed to stop Web Interface." bold
-                    fi
-                    ;;
-                2)
-                    colorize yellow "Restarting Web Interface..." bold
-                    sudo systemctl restart easymesh-web.service &> /dev/null
-                    if [[ $? -eq 0 ]]; then
-                        colorize green "Web Interface restarted successfully." bold
-                    else
-                        colorize red "Failed to restart Web Interface." bold
-                    fi
-                    ;;
-                3) return 0 ;;
-                *) colorize red "Invalid option!" bold ;;
-            esac
-        else
-            colorize green "1) Start Web Interface" bold
-            colorize yellow "2) Remove Web Interface"
-            colorize reset "3) Back"
-            echo
-            read -p "Enter your choice: " web_choice
-            case $web_choice in
-                1) 
-                    colorize yellow "Starting Web Interface..." bold
-                    sudo systemctl start easymesh-web.service &> /dev/null
-                    if [[ $? -eq 0 ]]; then
-                        colorize green "Web Interface started successfully." bold
-                        colorize yellow "Access at: http://localhost:9090" bold
-                    else
-                        colorize red "Failed to start Web Interface." bold
-                    fi
-                    ;;
-                2)
-                    colorize yellow "Removing Web Interface..." bold
-                    sudo systemctl stop easymesh-web.service &> /dev/null
-                    sudo systemctl disable easymesh-web.service &> /dev/null
-                    sudo rm $WEB_SERVICE_FILE &> /dev/null
-                    sudo systemctl daemon-reload &> /dev/null
-                    colorize green "Web Interface removed successfully." bold
-                    ;;
-                3) return 0 ;;
-                *) colorize red "Invalid option!" bold ;;
-            esac
-        fi
-    else
-        colorize green "1) Create Web Interface" bold
-        colorize reset "2) Back"
-        echo
-        read -p "Enter your choice: " web_choice
-        case $web_choice in
-            1) 
-                start_web_interface
-                ;;
-            2) return 0 ;;
-            *) colorize red "Invalid option!" bold ;;
-        esac
-    fi
-    
-    echo
-    read -p "Press Enter to continue..."
-}
-
-debug_web_interface() {
-    clear
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    
-    echo
-    colorize cyan "Web Interface Debug Information" bold
-    echo "============================================="
-    echo
-    
-    # Check if web-embed file exists
-    colorize yellow "1. Checking easytier-web-embed file..." bold
-    if [[ -f "/root/easytier/easytier-web-embed" ]]; then
-        colorize green "   ✓ easytier-web-embed file exists" bold
-        ls -la /root/easytier/easytier-web-embed
-    else
-        colorize red "   ✗ easytier-web-embed file NOT found" bold
-    fi
-    echo
-    
-    # Check if web-embed is executable
-    colorize yellow "2. Checking file permissions..." bold
-    if [[ -x "/root/easytier/easytier-web-embed" ]]; then
-        colorize green "   ✓ easytier-web-embed is executable" bold
-    else
-        colorize red "   ✗ easytier-web-embed is NOT executable" bold
-        colorize yellow "   Fixing permissions..." bold
-        chmod +x /root/easytier/easytier-web-embed
-    fi
-    echo
-    
-    # Check service file
-    colorize yellow "3. Checking service file..." bold
-    if [[ -f $WEB_SERVICE_FILE ]]; then
-        colorize green "   ✓ Service file exists" bold
-        echo "   Service file content:"
-        cat $WEB_SERVICE_FILE
-    else
-        colorize red "   ✗ Service file NOT found" bold
-    fi
-    echo
-    
-    # Check service status
-    colorize yellow "4. Checking service status..." bold
-    if systemctl is-active --quiet "easymesh-web.service"; then
-        colorize green "   ✓ Service is running" bold
-    else
-        colorize red "   ✗ Service is NOT running" bold
-    fi
-    
-    if systemctl is-enabled --quiet "easymesh-web.service"; then
-        colorize green "   ✓ Service is enabled" bold
-    else
-        colorize red "   ✗ Service is NOT enabled" bold
-    fi
-    echo
-    
-    # Check service logs
-    colorize yellow "5. Checking service logs..." bold
-    echo "   Recent logs:"
-    journalctl -u easymesh-web.service --no-pager -n 20
-    echo
-    
-    # Check if port is in use
-    colorize yellow "6. Checking port 9090..." bold
-    if netstat -tlnp | grep -q ":9090 "; then
-        colorize green "   ✓ Port 9090 is in use" bold
-        netstat -tlnp | grep ":9090 "
-    else
-        colorize red "   ✗ Port 9090 is NOT in use" bold
-    fi
-    echo
-    
-    # Try to run web-embed manually
-    colorize yellow "7. Testing manual execution..." bold
-    echo "   Trying to run: /root/easytier/easytier-web-embed --help"
-    timeout 10 /root/easytier/easytier-web-embed --help 2>&1 || echo "   Command timed out or failed"
-    echo
-    
-    # Check dependencies
-    colorize yellow "8. Checking dependencies..." bold
-    if command -v curl &> /dev/null; then
-        colorize green "   ✓ curl is available" bold
-    else
-        colorize red "   ✗ curl is NOT available" bold
-    fi
-    
-    if command -v systemctl &> /dev/null; then
-        colorize green "   ✓ systemctl is available" bold
-    else
-        colorize red "   ✗ systemctl is NOT available" bold
-    fi
-    echo
-    
-    echo
-    colorize cyan "Debug completed. Press Enter to continue..." bold
-    read -p ""
-}
-
-test_web_embed_parameters() {
-    clear
-    echo
-    colorize cyan "Testing easytier-web-embed Parameters" bold
-    echo "============================================="
-    echo
-    
-    if [[ ! -f "/root/easytier/easytier-web-embed" ]]; then
-        colorize red "easytier-web-embed file not found!" bold
-        return 1
-    fi
-    
-    colorize yellow "Testing different parameter combinations..." bold
-    echo
-    
-    # Test 1: No parameters
-    colorize yellow "1. Testing with no parameters:" bold
-    timeout 3 /root/easytier/easytier-web-embed 2>&1 | head -5 || echo "   Command timed out or failed"
-    echo
-    
-    # Test 2: --help
-    colorize yellow "2. Testing --help:" bold
-    timeout 5 /root/easytier/easytier-web-embed --help 2>&1 || echo "   Command timed out or failed"
-    echo
-    
-    # Test 3: Different port syntax
-    colorize yellow "3. Testing different port syntaxes:" bold
-    echo "   Testing: --port 9090"
-    timeout 3 /root/easytier/easytier-web-embed --port 9090 2>&1 | head -3 || echo "   Failed"
-    echo "   Testing: -p 9090"
-    timeout 3 /root/easytier/easytier-web-embed -p 9090 2>&1 | head -3 || echo "   Failed"
-    echo "   Testing: --listen 9090"
-    timeout 3 /root/easytier/easytier-web-embed --listen 9090 2>&1 | head -3 || echo "   Failed"
-    echo "   Testing: --bind 0.0.0.0:9090"
-    timeout 3 /root/easytier/easytier-web-embed --bind 0.0.0.0:9090 2>&1 | head -3 || echo "   Failed"
-    echo
-    
-    # Test 4: Environment variable
-    colorize yellow "4. Testing with environment variable:" bold
-    echo "   Testing: PORT=9090 ./easytier-web-embed"
-    timeout 3 env PORT=9090 /root/easytier/easytier-web-embed 2>&1 | head -3 || echo "   Failed"
-    echo
-    
-    echo
-    colorize cyan "Parameter testing completed. Press Enter to continue..." bold
-    read -p ""
-}
-
 view_service_status() {
 	if [[ ! -f $SERVICE_FILE ]]; then
-		 colorize red "	EasyMesh service does not exists." bold
+		 colorize red "	Hex Mesh service does not exists." bold
 		 sleep 1
 		 return 1
 	fi
 	clear
-    colorize cyan "EasyMesh Core Service Status:" bold
-    sudo systemctl status easymesh.service
-    
-    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
-    if [[ -f $WEB_SERVICE_FILE ]]; then
-        echo
-        colorize cyan "EasyMesh Web Service Status:" bold
-        sudo systemctl status easymesh-web.service
-    fi
-    
-    echo
-    read -p "Press Enter to continue..."
+    sudo systemctl status hexmesh.service
 }
 
 set_watchdog(){
@@ -816,7 +447,7 @@ cat << EOF | sudo tee /etc/monitor.sh > /dev/null
 IP_ADDRESS="$IP_ADDRESS"
 LATENCY_THRESHOLD=$LATENCY_THRESHOLD
 CHECK_INTERVAL=$CHECK_INTERVAL
-SERVICE_NAME="easymesh.service"
+SERVICE_NAME="hexmesh.service"
 LOG_FILE="/etc/monitor.log"
 
 # Function to restart the service
@@ -874,10 +505,10 @@ EOF
 	colorize yellow "Creating a service for watchdog" bold
 	echo
     
-SERVICE_FILE="/etc/systemd/system/easymesh-watchdog.service"    
+SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service"    
 cat > $SERVICE_FILE <<EOF
 [Unit]
-Description=EasyMesh Watchdog Service
+Description=Hex Mesh Watchdog Service
 After=network.target
 
 [Service]
@@ -890,7 +521,7 @@ EOF
 
 	# Execute the script in the background
     systemctl daemon-reload >/dev/null 2>&1
-	systemctl enable --now easymesh-watchdog.service
+	systemctl enable --now hexmesh-watchdog.service
 	
     echo
     colorize green "Watchdog service started successfully" bold
@@ -901,7 +532,7 @@ press_key
 # Function to stop the watchdog
 stop_watchdog() {
 	echo 
-	SERVICE_FILE="/etc/systemd/system/easymesh-watchdog.service" 
+	SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service" 
 	
 	if [[ ! -f $SERVICE_FILE ]]; then
 		 colorize red "Watchdog service does not exists." bold
@@ -909,7 +540,7 @@ stop_watchdog() {
 		 return 1
 	fi
 	
-    systemctl disable --now easymesh-watchdog.service &> /dev/null
+    systemctl disable --now hexmesh-watchdog.service &> /dev/null
     rm -f /etc/monitor.sh /etc/monitor.log &> /dev/null 
     rm -f "$SERVICE_FILE"  &> /dev/null 
     systemctl daemon-reload &> /dev/null
@@ -919,7 +550,7 @@ stop_watchdog() {
 }
 
 view_watchdog_status(){
-	if systemctl is-active --quiet "easymesh-watchdog.service"; then
+	if systemctl is-active --quiet "hexmesh-watchdog.service"; then
 				colorize green "	Watchdog service is running" bold
 			else
 				colorize red "	Watchdog service is not running" bold
@@ -943,7 +574,7 @@ view_logs() {
 add_cron_job() {
 	echo 
 
-	local service_name="easymesh.service"
+	local service_name="hexmesh.service"
 	
     # Prompt user to choose a restart time interval
     colorize cyan "Select the restart time interval:" bold
@@ -1025,7 +656,7 @@ EOF
 
 delete_cron_job() {
     echo
-    local service_name="easymesh.service"
+    local service_name="hexmesh.service"
     local reset_path="/root/easytier/reset.sh"
     
     crontab -l | grep -v "#$service_name" | crontab -
@@ -1066,10 +697,10 @@ check_core_status(){
     FILE4="easytier-web-embed"
     
         if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ] && [ -f "$DEST_DIR/$FILE3" ] && [ -f "$DEST_DIR/$FILE4" ]; then
-        colorize green "EasyMesh Core v2.4.3 Installed" bold
+        colorize green "Hex Mesh Core v2.4.3 Installed" bold
         return 0
     else
-        colorize red "EasyMesh Core v2.4.3 not found" bold
+        colorize red "Hex Mesh Core v2.4.3 not found" bold
         return 1
     fi
 }
@@ -1079,7 +710,7 @@ remove_easymesh_core(){
 	echo
 	
 	if [[ ! -d '/root/easytier' ]]; then
-		 colorize red "	EasyMesh directory not found." bold
+		 colorize red "	Hex Mesh directory not found." bold
 		 sleep 2
 		 return 1
 	fi
@@ -1087,7 +718,7 @@ remove_easymesh_core(){
 	
 	rm -rf /root/easytier &> /dev/null
 	
-	colorize green "	Easymesh core deleted successfully." bold
+	colorize green "	Hex Mesh core deleted successfully." bold
 	sleep 2
 
 }
@@ -1096,7 +727,7 @@ display_menu() {
     clear
 # Print the header with colors
 echo -e "   ${CYAN}╔════════════════════════════════════════╗"
-echo -e "   ║            🌐 ${WHITE}EasyMesh v2.4.3           ${CYAN}║"
+echo -e "   ║            🌐 ${WHITE}Hex Mesh v2.4.3           ${CYAN}║"
 echo -e "   ║        ${WHITE}VPN Network Solution            ${CYAN}║"
 echo -e "   ╠════════════════════════════════════════╣"
 echo -e "   ║  ${WHITE}Core Version: 2.4.3                    ${CYAN}║"
@@ -1112,16 +743,12 @@ echo -e "   ╚═════════════════════�
     colorize cyan "	[3] Display Routes" 
     colorize reset "	[4] Peer-Center"
     colorize reset "	[5] Display Secret Key"
-    colorize reset "	[6] Web Interface Info"
-    colorize reset "	[7] Start/Stop Web Interface"
-    colorize reset "	[8] View Service Status"  
-    colorize reset "	[9] Debug Web Interface"
-    colorize reset "	[10] Test Web Parameters"
-    colorize reset "	[11] Set Watchdog [Auto-Restarter]"
-    colorize reset "	[12] Cron-jon setting"   
-    colorize yellow "	[13] Restart Service" 
-    colorize red "	[14] Remove Service" 
-    colorize magenta "	[15] Remove Core" 
+    colorize reset "	[6] View Service Status"  
+    colorize reset "	[7] Set Watchdog [Auto-Restarter]"
+    colorize reset "	[8] Cron-jon setting"   
+    colorize yellow "	[9] Restart Service" 
+    colorize red "	[10] Remove Service" 
+    colorize magenta "	[11] Remove Core" 
     
     echo -e "	[0] Exit" 
     echo ''
@@ -1139,16 +766,12 @@ read_option() {
         3) display_routes ;;
         4) peer_center ;;
         5) show_network_secret ;;
-        6) show_web_interface_info ;;
-        7) manage_web_interface ;;
-        8) view_service_status ;;
-        9) debug_web_interface ;;
-        10) test_web_embed_parameters ;;
-        11) set_watchdog ;;
-        12) set_cronjob ;;
-        13) restart_easymesh_service ;;
-        14) remove_easymesh_service ;;
-        15) remove_easymesh_core ;;
+        6) view_service_status ;;
+        7) set_watchdog ;;
+        8) set_cronjob ;;
+        9) restart_easymesh_service ;;
+        10) remove_easymesh_service ;;
+        11) remove_easymesh_core ;;
         0) exit 0 ;;
         *) colorize red "	Invalid option!" bold && sleep 1 ;;
     esac
