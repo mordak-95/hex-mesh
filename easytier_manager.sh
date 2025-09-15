@@ -1,341 +1,340 @@
 #!/bin/bash
 
-# EasyTier Management Script
-# Simple script to manage EasyTier service
+# EasyTier Network Manager
+# Helper script for managing EasyTier mesh networks
 
-set -e
+RED_COLOR='\e[1;31m'
+GREEN_COLOR='\e[1;32m'
+YELLOW_COLOR='\e[1;33m'
+BLUE_COLOR='\e[1;34m'
+PINK_COLOR='\e[1;35m'
+CYAN_COLOR='\e[1;36m'
+RES='\e[0m'
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+INSTALL_PATH='/opt/easytier'
 
-# Configuration
-SERVICE_NAME="easytier"
-CONFIG_DIR="/opt/easytier/config"
-INSTANCE_NAME="default"
-
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_header() {
-    echo -e "${BLUE}================================${NC}"
-    echo -e "${BLUE}    EasyTier Manager Script     ${NC}"
-    echo -e "${BLUE}================================${NC}"
-}
-
-# Function to check if running as root
-check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        print_error "This script must be run as root (use sudo)"
+# Check if EasyTier is installed
+check_installation() {
+    if [ ! -f "$INSTALL_PATH/easytier-core" ]; then
+        echo -e "${RED_COLOR}EasyTier is not installed!${RES}"
+        echo "Please run the installer first: ./easytier_installer.sh"
         exit 1
     fi
 }
 
-# Function to show service status
+# Show network status
 show_status() {
-    print_header
-    print_status "EasyTier Service Status:"
-    echo
+    echo -e "${CYAN_COLOR}╔══════════════════════════════════════════════════════════════╗${RES}"
+    echo -e "${CYAN_COLOR}║                    Network Status                          ║${RES}"
+    echo -e "${CYAN_COLOR}╚══════════════════════════════════════════════════════════════╝${RES}\n"
     
-    if systemctl is-active --quiet "${SERVICE_NAME}@${INSTANCE_NAME}"; then
-        echo -e "${GREEN}● Service Status: RUNNING${NC}"
+    # Service status
+    echo -e "${BLUE_COLOR}Service Status:${RES}"
+    if systemctl is-active --quiet easytier@default 2>/dev/null; then
+        echo -e "  ${GREEN_COLOR}✓ EasyTier service is running${RES}"
     else
-        echo -e "${RED}● Service Status: STOPPED${NC}"
-    fi
-    
-    if systemctl is-enabled --quiet "${SERVICE_NAME}@${INSTANCE_NAME}"; then
-        echo -e "${GREEN}● Auto Start: ENABLED${NC}"
-    else
-        echo -e "${YELLOW}● Auto Start: DISABLED${NC}"
+        echo -e "  ${RED_COLOR}✗ EasyTier service is not running${RES}"
     fi
     
     echo
-    print_status "Service Details:"
-    systemctl status "${SERVICE_NAME}@${INSTANCE_NAME}" --no-pager -l
+    
+    # Node information
+    echo -e "${BLUE_COLOR}Local Node Information:${RES}"
+    if command -v easytier-cli >/dev/null 2>&1; then
+        easytier-cli node 2>/dev/null || echo -e "  ${YELLOW_COLOR}Unable to get node information${RES}"
+    else
+        echo -e "  ${YELLOW_COLOR}easytier-cli not found${RES}"
+    fi
     
     echo
-    print_status "Recent Logs:"
-    journalctl -u "${SERVICE_NAME}@${INSTANCE_NAME}" --no-pager -n 10
+    
+    # Connected peers
+    echo -e "${BLUE_COLOR}Connected Peers:${RES}"
+    if command -v easytier-cli >/dev/null 2>&1; then
+        easytier-cli peer 2>/dev/null || echo -e "  ${YELLOW_COLOR}Unable to get peer information${RES}"
+    else
+        echo -e "  ${YELLOW_COLOR}easytier-cli not found${RES}"
+    fi
+    
+    echo
+    
+    # Network routes
+    echo -e "${BLUE_COLOR}Network Routes:${RES}"
+    if command -v easytier-cli >/dev/null 2>&1; then
+        easytier-cli route 2>/dev/null || echo -e "  ${YELLOW_COLOR}Unable to get route information${RES}"
+    else
+        echo -e "  ${YELLOW_COLOR}easytier-cli not found${RES}"
+    fi
 }
 
-# Function to start service
-start_service() {
-    print_header
-    print_status "Starting EasyTier service..."
+# Add new peer
+add_peer() {
+    echo -e "${CYAN_COLOR}Add New Peer to Network${RES}\n"
     
-    if systemctl is-active --quiet "${SERVICE_NAME}@${INSTANCE_NAME}"; then
-        print_warning "Service is already running"
-    else
-        systemctl start "${SERVICE_NAME}@${INSTANCE_NAME}"
-        sleep 2
-        
-        if systemctl is-active --quiet "${SERVICE_NAME}@${INSTANCE_NAME}"; then
-            print_status "Service started successfully"
-        else
-            print_error "Failed to start service"
-            systemctl status "${SERVICE_NAME}@${INSTANCE_NAME}" --no-pager
-            exit 1
+    read -p "Enter peer IP address: " peer_ip
+    if [[ ! $peer_ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        echo -e "${RED_COLOR}Invalid IP address format${RES}"
+        return 1
+    fi
+    
+    read -p "Enter peer port (default: 11010): " peer_port
+    peer_port=${peer_port:-11010}
+    
+    # Add peer to config
+    config_file="$INSTALL_PATH/config/default.conf"
+    if [ -f "$config_file" ]; then
+        # Check if peer already exists
+        if grep -q "uri = \"tcp://$peer_ip:$peer_port\"" "$config_file"; then
+            echo -e "${YELLOW_COLOR}Peer already exists in configuration${RES}"
+            return 0
         fi
-    fi
-}
-
-# Function to stop service
-stop_service() {
-    print_header
-    print_status "Stopping EasyTier service..."
-    
-    if ! systemctl is-active --quiet "${SERVICE_NAME}@${INSTANCE_NAME}"; then
-        print_warning "Service is already stopped"
+        
+        # Add peer before network_identity section
+        sed -i "/\[network_identity\]/i [[peer]]\nuri = \"tcp://$peer_ip:$peer_port\"\n" "$config_file"
+        
+        echo -e "${GREEN_COLOR}✓ Peer added to configuration${RES}"
+        echo -e "${BLUE_COLOR}Restarting service to apply changes...${RES}"
+        
+        systemctl restart easytier@default
+        echo -e "${GREEN_COLOR}✓ Service restarted${RES}"
     else
-        systemctl stop "${SERVICE_NAME}@${INSTANCE_NAME}"
-        print_status "Service stopped successfully"
+        echo -e "${RED_COLOR}Configuration file not found${RES}"
+        return 1
     fi
 }
 
-# Function to restart service
-restart_service() {
-    print_header
-    print_status "Restarting EasyTier service..."
+# Remove peer
+remove_peer() {
+    echo -e "${CYAN_COLOR}Remove Peer from Network${RES}\n"
     
-    systemctl restart "${SERVICE_NAME}@${INSTANCE_NAME}"
-    sleep 2
+    read -p "Enter peer IP address to remove: " peer_ip
+    if [[ ! $peer_ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        echo -e "${RED_COLOR}Invalid IP address format${RES}"
+        return 1
+    fi
     
-    if systemctl is-active --quiet "${SERVICE_NAME}@${INSTANCE_NAME}"; then
-        print_status "Service restarted successfully"
+    config_file="$INSTALL_PATH/config/default.conf"
+    if [ -f "$config_file" ]; then
+        # Remove peer from config
+        sed -i "/\[\[peer\]\]/,/uri = \"tcp:\/\/$peer_ip:/d" "$config_file"
+        
+        echo -e "${GREEN_COLOR}✓ Peer removed from configuration${RES}"
+        echo -e "${BLUE_COLOR}Restarting service to apply changes...${RES}"
+        
+        systemctl restart easytier@default
+        echo -e "${GREEN_COLOR}✓ Service restarted${RES}"
     else
-        print_error "Failed to restart service"
-        systemctl status "${SERVICE_NAME}@${INSTANCE_NAME}" --no-pager
-        exit 1
+        echo -e "${RED_COLOR}Configuration file not found${RES}"
+        return 1
     fi
 }
 
-# Function to enable auto-start
-enable_autostart() {
-    print_header
-    print_status "Enabling EasyTier auto-start..."
-    
-    systemctl enable "${SERVICE_NAME}@${INSTANCE_NAME}"
-    print_status "Auto-start enabled"
-}
-
-# Function to disable auto-start
-disable_autostart() {
-    print_header
-    print_status "Disabling EasyTier auto-start..."
-    
-    systemctl disable "${SERVICE_NAME}@${INSTANCE_NAME}"
-    print_status "Auto-start disabled"
-}
-
-# Function to show logs
-show_logs() {
-    print_header
-    print_status "EasyTier Service Logs (Press Ctrl+C to exit):"
-    echo
-    
-    journalctl -u "${SERVICE_NAME}@${INSTANCE_NAME}" -f
-}
-
-# Function to show network info
-show_network_info() {
-    print_header
-    print_status "EasyTier Network Information:"
-    echo
+# Test connectivity
+test_connectivity() {
+    echo -e "${CYAN_COLOR}Test Network Connectivity${RES}\n"
     
     if command -v easytier-cli >/dev/null 2>&1; then
-        echo -e "${GREEN}Connected Peers:${NC}"
-        easytier-cli peer
-        echo
+        echo -e "${BLUE_COLOR}Getting peer list...${RES}"
+        peers=$(easytier-cli peer 2>/dev/null | grep -E "^\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|.*\|" | tail -n +3 | head -n -1)
         
-        echo -e "${GREEN}Routing Table:${NC}"
-        easytier-cli route
-        echo
+        if [ -z "$peers" ]; then
+            echo -e "${YELLOW_COLOR}No peers found to test${RES}"
+            return 0
+        fi
         
-        echo -e "${GREEN}Node Information:${NC}"
-        easytier-cli node
+        echo -e "${BLUE_COLOR}Testing connectivity to peers...${RES}\n"
+        
+        while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                ip=$(echo "$line" | awk -F'|' '{print $2}' | xargs)
+                hostname=$(echo "$line" | awk -F'|' '{print $3}' | xargs)
+                
+                if [ -n "$ip" ] && [ "$ip" != "ipv4" ]; then
+                    echo -n "Testing $hostname ($ip): "
+                    if ping -c 1 -W 3 "$ip" >/dev/null 2>&1; then
+                        echo -e "${GREEN_COLOR}✓ Reachable${RES}"
+                    else
+                        echo -e "${RED_COLOR}✗ Unreachable${RES}"
+                    fi
+                fi
+            fi
+        done <<< "$peers"
     else
-        print_error "easytier-cli not found. Make sure EasyTier is properly installed."
+        echo -e "${RED_COLOR}easytier-cli not found${RES}"
+        return 1
     fi
 }
 
-# Function to edit configuration
-edit_config() {
-    print_header
-    print_status "Opening EasyTier configuration for editing..."
-    
-    local config_file="${CONFIG_DIR}/${INSTANCE_NAME}.conf"
-    
-    if [[ ! -f "$config_file" ]]; then
-        print_error "Configuration file not found: $config_file"
-        exit 1
-    fi
-    
-    # Check if nano is available
-    if command -v nano >/dev/null 2>&1; then
-        nano "$config_file"
-    elif command -v vim >/dev/null 2>&1; then
-        vim "$config_file"
-    else
-        print_error "No text editor found. Please install nano or vim."
-        exit 1
-    fi
-    
-    echo
-    print_warning "Configuration file edited. Restart the service to apply changes."
-    read -p "Do you want to restart the service now? (y/N): " -n 1 -r
-    echo
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        restart_service
-    fi
-}
-
-# Function to show configuration
+# Show configuration
 show_config() {
-    print_header
-    print_status "EasyTier Configuration:"
-    echo
+    echo -e "${CYAN_COLOR}Current Configuration${RES}\n"
     
-    local config_file="${CONFIG_DIR}/${INSTANCE_NAME}.conf"
-    
-    if [[ -f "$config_file" ]]; then
+    config_file="$INSTALL_PATH/config/default.conf"
+    if [ -f "$config_file" ]; then
         cat "$config_file"
     else
-        print_error "Configuration file not found: $config_file"
+        echo -e "${RED_COLOR}Configuration file not found${RES}"
     fi
 }
 
-# Function to uninstall EasyTier
-uninstall() {
-    print_header
-    print_warning "This will completely remove EasyTier from your system."
-    read -p "Are you sure you want to continue? (y/N): " -n 1 -r
-    echo
+# Edit configuration
+edit_config() {
+    echo -e "${CYAN_COLOR}Edit Configuration${RES}\n"
     
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_status "Uninstall cancelled"
-        exit 0
+    config_file="$INSTALL_PATH/config/default.conf"
+    if [ -f "$config_file" ]; then
+        echo -e "${BLUE_COLOR}Opening configuration file for editing...${RES}"
+        echo -e "${YELLOW_COLOR}Note: After editing, restart the service to apply changes${RES}\n"
+        
+        if command -v nano >/dev/null 2>&1; then
+            nano "$config_file"
+        elif command -v vim >/dev/null 2>&1; then
+            vim "$config_file"
+        elif command -v vi >/dev/null 2>&1; then
+            vi "$config_file"
+        else
+            echo -e "${RED_COLOR}No text editor found. Please install nano, vim, or vi${RES}"
+            return 1
+        fi
+        
+        echo -e "\n${BLUE_COLOR}Restart service to apply changes? (y/N): ${RES}"
+        read -r restart
+        if [[ $restart =~ ^[Yy]$ ]]; then
+            systemctl restart easytier@default
+            echo -e "${GREEN_COLOR}✓ Service restarted${RES}"
+        fi
+    else
+        echo -e "${RED_COLOR}Configuration file not found${RES}"
     fi
-    
-    print_status "Stopping EasyTier service..."
-    systemctl stop "${SERVICE_NAME}@${INSTANCE_NAME}" 2>/dev/null || true
-    systemctl disable "${SERVICE_NAME}@${INSTANCE_NAME}" 2>/dev/null || true
-    
-    print_status "Removing systemd service..."
-    rm -f "/etc/systemd/system/${SERVICE_NAME}@.service"
-    systemctl daemon-reload
-    
-    print_status "Removing EasyTier files..."
-    rm -rf "/opt/easytier"
-    rm -f "/usr/local/bin/easytier-cli"
-    
-    print_status "Removing firewall rules..."
-    if command -v ufw >/dev/null 2>&1; then
-        ufw delete allow 11010/tcp 2>/dev/null || true
-        ufw delete allow 11010/udp 2>/dev/null || true
-        ufw delete allow 11011/tcp 2>/dev/null || true
-        ufw delete allow 11012/tcp 2>/dev/null || true
-        ufw delete allow 11013/udp 2>/dev/null || true
-    fi
-    
-    print_status "EasyTier has been completely removed from your system."
 }
 
-# Function to show help
-show_help() {
-    print_header
-    echo "EasyTier Management Script"
+# Service management
+manage_service() {
+    echo -e "${CYAN_COLOR}Service Management${RES}\n"
+    
+    echo "1) Start service"
+    echo "2) Stop service"
+    echo "3) Restart service"
+    echo "4) Enable auto-start"
+    echo "5) Disable auto-start"
+    echo "6) View service status"
+    echo "7) View service logs"
     echo
-    echo "Usage: $0 [COMMAND]"
-    echo
-    echo "Commands:"
-    echo "  status      Show service status and recent logs"
-    echo "  start       Start EasyTier service"
-    echo "  stop        Stop EasyTier service"
-    echo "  restart     Restart EasyTier service"
-    echo "  enable      Enable auto-start on boot"
-    echo "  disable     Disable auto-start on boot"
-    echo "  logs        Show live service logs"
-    echo "  info        Show network information (peers, routes, node)"
-    echo "  config      Show current configuration"
-    echo "  edit        Edit configuration file"
-    echo "  uninstall   Completely remove EasyTier"
-    echo "  help        Show this help message"
-    echo
-    echo "Examples:"
-    echo "  $0 status"
-    echo "  $0 restart"
-    echo "  $0 logs"
-    echo "  $0 edit"
-}
-
-# Main function
-main() {
-    case "${1:-help}" in
-        status)
-            show_status
+    
+    read -p "Choose an option (1-7): " choice
+    
+    case $choice in
+        1)
+            systemctl start easytier@default
+            echo -e "${GREEN_COLOR}✓ Service started${RES}"
             ;;
-        start)
-            check_root
-            start_service
+        2)
+            systemctl stop easytier@default
+            echo -e "${GREEN_COLOR}✓ Service stopped${RES}"
             ;;
-        stop)
-            check_root
-            stop_service
+        3)
+            systemctl restart easytier@default
+            echo -e "${GREEN_COLOR}✓ Service restarted${RES}"
             ;;
-        restart)
-            check_root
-            restart_service
+        4)
+            systemctl enable easytier@default
+            echo -e "${GREEN_COLOR}✓ Auto-start enabled${RES}"
             ;;
-        enable)
-            check_root
-            enable_autostart
+        5)
+            systemctl disable easytier@default
+            echo -e "${GREEN_COLOR}✓ Auto-start disabled${RES}"
             ;;
-        disable)
-            check_root
-            disable_autostart
+        6)
+            systemctl status easytier@default
             ;;
-        logs)
-            show_logs
-            ;;
-        info)
-            show_network_info
-            ;;
-        config)
-            show_config
-            ;;
-        edit)
-            check_root
-            edit_config
-            ;;
-        uninstall)
-            check_root
-            uninstall
-            ;;
-        help|--help|-h)
-            show_help
+        7)
+            journalctl -u easytier@default -f
             ;;
         *)
-            print_error "Unknown command: $1"
-            echo
-            show_help
-            exit 1
+            echo -e "${RED_COLOR}Invalid option${RES}"
             ;;
     esac
 }
 
-# Run main function with all arguments
+# Show help
+show_help() {
+    echo -e "${GREEN_COLOR}EasyTier Network Manager Help${RES}\n"
+    echo "Usage: ./easytier_manager.sh [command]"
+    echo
+    echo "Commands:"
+    echo "  status     Show network status and information"
+    echo "  add-peer   Add a new peer to the network"
+    echo "  remove-peer Remove a peer from the network"
+    echo "  test       Test connectivity to peers"
+    echo "  config     Show current configuration"
+    echo "  edit       Edit configuration file"
+    echo "  service    Manage EasyTier service"
+    echo "  help       Show this help message"
+    echo
+    echo "Examples:"
+    echo "  ./easytier_manager.sh status"
+    echo "  ./easytier_manager.sh add-peer"
+    echo "  ./easytier_manager.sh test"
+}
+
+# Main menu
+show_menu() {
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                 EasyTier Network Manager                    ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}\n"
+        
+        echo "1) Show network status"
+        echo "2) Add new peer"
+        echo "3) Remove peer"
+        echo "4) Test connectivity"
+        echo "5) Show configuration"
+        echo "6) Edit configuration"
+        echo "7) Manage service"
+        echo "8) Help"
+        echo "9) Exit"
+        echo
+        
+        read -p "Choose an option (1-9): " choice
+        
+        case $choice in
+            1) show_status; read -p "Press Enter to continue..."; ;;
+            2) add_peer; read -p "Press Enter to continue..."; ;;
+            3) remove_peer; read -p "Press Enter to continue..."; ;;
+            4) test_connectivity; read -p "Press Enter to continue..."; ;;
+            5) show_config; read -p "Press Enter to continue..."; ;;
+            6) edit_config; read -p "Press Enter to continue..."; ;;
+            7) manage_service; read -p "Press Enter to continue..."; ;;
+            8) show_help; read -p "Press Enter to continue..."; ;;
+            9) echo -e "${GREEN_COLOR}Goodbye!${RES}"; exit 0; ;;
+            *) echo -e "${RED_COLOR}Invalid option${RES}"; sleep 2; ;;
+        esac
+    done
+}
+
+# Main function
+main() {
+    check_installation
+    
+    if [ $# -eq 0 ]; then
+        show_menu
+    else
+        case $1 in
+            status) show_status ;;
+            add-peer) add_peer ;;
+            remove-peer) remove_peer ;;
+            test) test_connectivity ;;
+            config) show_config ;;
+            edit) edit_config ;;
+            service) manage_service ;;
+            help) show_help ;;
+            *) echo -e "${RED_COLOR}Unknown command: $1${RES}"; show_help ;;
+        esac
+    fi
+}
+
+# Run main function
 main "$@"
