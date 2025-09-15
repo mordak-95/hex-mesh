@@ -316,30 +316,52 @@ EOF
 start_web_interface() {
     colorize yellow "Starting Web Interface on port 9090...\n" bold
     
+    # Check if easytier-web-embed exists
+    if [[ ! -f "/root/easytier/easytier-web-embed" ]]; then
+        colorize red "easytier-web-embed file not found!\n" bold
+        colorize yellow "Please make sure you have installed EasyMesh Core v2.4.3\n" bold
+        return 1
+    fi
+    
+    # Make sure it's executable
+    chmod +x /root/easytier/easytier-web-embed
+    
     # Create web interface service file
     WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
     
 cat > $WEB_SERVICE_FILE <<EOF
 [Unit]
 Description=EasyMesh Web Interface v2.4.3
-After=network.target easymesh.service
-Requires=easymesh.service
+After=network.target
+Wants=easymesh.service
 
 [Service]
+Type=simple
 ExecStart=/root/easytier/easytier-web-embed --port 9090
 Restart=on-failure
+RestartSec=5
 User=root
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     # Reload systemd, enable and start the web service
-    sudo systemctl daemon-reload &> /dev/null
-    sudo systemctl enable easymesh-web.service &> /dev/null
-    sudo systemctl start easymesh-web.service &> /dev/null
+    colorize yellow "Reloading systemd daemon..." bold
+    sudo systemctl daemon-reload
     
-    if [[ $? -eq 0 ]]; then
+    colorize yellow "Enabling web service..." bold
+    sudo systemctl enable easymesh-web.service
+    
+    colorize yellow "Starting web service..." bold
+    sudo systemctl start easymesh-web.service
+    
+    # Wait a moment and check status
+    sleep 2
+    
+    if systemctl is-active --quiet "easymesh-web.service"; then
         colorize green "Web Interface started successfully on port 9090\n" bold
         echo
         colorize cyan "Web Interface Information:" bold
@@ -348,6 +370,8 @@ EOF
         echo
     else
         colorize red "Failed to start Web Interface\n" bold
+        colorize yellow "Checking logs for errors...\n" bold
+        journalctl -u easymesh-web.service --no-pager -n 10
     fi
 }
 
@@ -580,6 +604,104 @@ manage_web_interface() {
     
     echo
     read -p "Press Enter to continue..."
+}
+
+debug_web_interface() {
+    clear
+    WEB_SERVICE_FILE="/etc/systemd/system/easymesh-web.service"
+    
+    echo
+    colorize cyan "Web Interface Debug Information" bold
+    echo "============================================="
+    echo
+    
+    # Check if web-embed file exists
+    colorize yellow "1. Checking easytier-web-embed file..." bold
+    if [[ -f "/root/easytier/easytier-web-embed" ]]; then
+        colorize green "   ✓ easytier-web-embed file exists" bold
+        ls -la /root/easytier/easytier-web-embed
+    else
+        colorize red "   ✗ easytier-web-embed file NOT found" bold
+    fi
+    echo
+    
+    # Check if web-embed is executable
+    colorize yellow "2. Checking file permissions..." bold
+    if [[ -x "/root/easytier/easytier-web-embed" ]]; then
+        colorize green "   ✓ easytier-web-embed is executable" bold
+    else
+        colorize red "   ✗ easytier-web-embed is NOT executable" bold
+        colorize yellow "   Fixing permissions..." bold
+        chmod +x /root/easytier/easytier-web-embed
+    fi
+    echo
+    
+    # Check service file
+    colorize yellow "3. Checking service file..." bold
+    if [[ -f $WEB_SERVICE_FILE ]]; then
+        colorize green "   ✓ Service file exists" bold
+        echo "   Service file content:"
+        cat $WEB_SERVICE_FILE
+    else
+        colorize red "   ✗ Service file NOT found" bold
+    fi
+    echo
+    
+    # Check service status
+    colorize yellow "4. Checking service status..." bold
+    if systemctl is-active --quiet "easymesh-web.service"; then
+        colorize green "   ✓ Service is running" bold
+    else
+        colorize red "   ✗ Service is NOT running" bold
+    fi
+    
+    if systemctl is-enabled --quiet "easymesh-web.service"; then
+        colorize green "   ✓ Service is enabled" bold
+    else
+        colorize red "   ✗ Service is NOT enabled" bold
+    fi
+    echo
+    
+    # Check service logs
+    colorize yellow "5. Checking service logs..." bold
+    echo "   Recent logs:"
+    journalctl -u easymesh-web.service --no-pager -n 20
+    echo
+    
+    # Check if port is in use
+    colorize yellow "6. Checking port 9090..." bold
+    if netstat -tlnp | grep -q ":9090 "; then
+        colorize green "   ✓ Port 9090 is in use" bold
+        netstat -tlnp | grep ":9090 "
+    else
+        colorize red "   ✗ Port 9090 is NOT in use" bold
+    fi
+    echo
+    
+    # Try to run web-embed manually
+    colorize yellow "7. Testing manual execution..." bold
+    echo "   Trying to run: /root/easytier/easytier-web-embed --help"
+    timeout 5 /root/easytier/easytier-web-embed --help 2>&1 || echo "   Command timed out or failed"
+    echo
+    
+    # Check dependencies
+    colorize yellow "8. Checking dependencies..." bold
+    if command -v curl &> /dev/null; then
+        colorize green "   ✓ curl is available" bold
+    else
+        colorize red "   ✗ curl is NOT available" bold
+    fi
+    
+    if command -v systemctl &> /dev/null; then
+        colorize green "   ✓ systemctl is available" bold
+    else
+        colorize red "   ✗ systemctl is NOT available" bold
+    fi
+    echo
+    
+    echo
+    colorize cyan "Debug completed. Press Enter to continue..." bold
+    read -p ""
 }
 
 view_service_status() {
@@ -944,11 +1066,12 @@ echo -e "   ╚═════════════════════�
     colorize reset "	[6] Web Interface Info"
     colorize reset "	[7] Start/Stop Web Interface"
     colorize reset "	[8] View Service Status"  
-    colorize reset "	[9] Set Watchdog [Auto-Restarter]"
-    colorize reset "	[10] Cron-jon setting"   
-    colorize yellow "	[11] Restart Service" 
-    colorize red "	[12] Remove Service" 
-    colorize magenta "	[13] Remove Core" 
+    colorize reset "	[9] Debug Web Interface"
+    colorize reset "	[10] Set Watchdog [Auto-Restarter]"
+    colorize reset "	[11] Cron-jon setting"   
+    colorize yellow "	[12] Restart Service" 
+    colorize red "	[13] Remove Service" 
+    colorize magenta "	[14] Remove Core" 
     
     echo -e "	[0] Exit" 
     echo ''
@@ -969,11 +1092,12 @@ read_option() {
         6) show_web_interface_info ;;
         7) manage_web_interface ;;
         8) view_service_status ;;
-        9) set_watchdog ;;
-        10) set_cronjob ;;
-        11) restart_easymesh_service ;;
-        12) remove_easymesh_service ;;
-        13) remove_easymesh_core ;;
+        9) debug_web_interface ;;
+        10) set_watchdog ;;
+        11) set_cronjob ;;
+        12) restart_easymesh_service ;;
+        13) remove_easymesh_service ;;
+        14) remove_easymesh_core ;;
         0) exit 0 ;;
         *) colorize red "	Invalid option!" bold && sleep 1 ;;
     esac
