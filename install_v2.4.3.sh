@@ -294,9 +294,74 @@ display_peers() {
     clear_screen
     print_banner
     print_header "Network Peers"
-    echo "Press Ctrl+C to return to main menu"
     echo ""
-    watch -n1 "$EASY_CLIENT" peer
+    
+    # Get peer data and format it nicely
+    local peer_data
+    peer_data=$("$EASY_CLIENT" peer 2>/dev/null || echo "No peers found")
+    
+    if [[ "$peer_data" == "No peers found" ]]; then
+        echo "No peers connected to the mesh network."
+        echo ""
+        press_key
+        return
+    fi
+    
+    # Parse and display peer information in a styled format
+    echo "Connected Peers:"
+    echo "============================================================"
+    echo ""
+    
+    # Extract peer information and display in a clean format
+    "$EASY_CLIENT" peer 2>/dev/null | tail -n +3 | head -n -1 | while IFS='│' read -r ipv4 hostname cost lat_ms loss_rate rx_bytes tx_bytes tunnel_proto nat_type id version; do
+        # Clean up the data (remove extra spaces and dashes)
+        ipv4=$(echo "$ipv4" | xargs)
+        hostname=$(echo "$hostname" | xargs)
+        cost=$(echo "$cost" | xargs)
+        lat_ms=$(echo "$lat_ms" | xargs)
+        loss_rate=$(echo "$loss_rate" | xargs)
+        rx_bytes=$(echo "$rx_bytes" | xargs)
+        tx_bytes=$(echo "$tx_bytes" | xargs)
+        tunnel_proto=$(echo "$tunnel_proto" | xargs)
+        nat_type=$(echo "$nat_type" | xargs)
+        version=$(echo "$version" | xargs)
+        
+        # Skip empty lines
+        if [[ -z "$ipv4" || "$ipv4" == "" ]]; then
+            continue
+        fi
+        
+        echo "┌─ Peer Information ─────────────────────────────────────┐"
+        echo "│ Hostname: $hostname"
+        printf "│ IPv4: %-45s │\n" "$ipv4"
+        echo "│ Cost: $cost"
+        if [[ "$lat_ms" != "-" && "$lat_ms" != "" ]]; then
+            echo "│ Latency: ${lat_ms}ms"
+        fi
+        if [[ "$loss_rate" != "-" && "$loss_rate" != "" ]]; then
+            echo "│ Loss Rate: $loss_rate"
+        fi
+        if [[ "$rx_bytes" != "-" && "$rx_bytes" != "" ]]; then
+            echo "│ RX: $rx_bytes"
+        fi
+        if [[ "$tx_bytes" != "-" && "$tx_bytes" != "" ]]; then
+            echo "│ TX: $tx_bytes"
+        fi
+        if [[ "$tunnel_proto" != "-" && "$tunnel_proto" != "" ]]; then
+            echo "│ Protocol: $tunnel_proto"
+        fi
+        if [[ "$nat_type" != "-" && "$nat_type" != "" ]]; then
+            echo "│ NAT Type: $nat_type"
+        fi
+        if [[ "$version" != "-" && "$version" != "" ]]; then
+            echo "│ Version: $version"
+        fi
+        echo "└─────────────────────────────────────────────────────────┘"
+        echo ""
+    done
+    
+    echo "Press Enter to continue..."
+    read -r
 }
 
 
