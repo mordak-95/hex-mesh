@@ -299,25 +299,8 @@ display_peers() {
     watch -n1 "$EASY_CLIENT" peer
 }
 
-display_routes() {
-    clear_screen
-    print_banner
-    print_header "Network Routes"
-    echo "Press Ctrl+C to return to main menu"
-    echo ""
-    watch -n1 "$EASY_CLIENT" route
-}
 
-peer_center() {
-    clear_screen
-    print_banner
-    print_header "Peer Center"
-    echo "Press Ctrl+C to return to main menu"
-    echo ""
-    watch -n1 "$EASY_CLIENT" peer-center
-}
-
-restart_easymesh_service() {
+restart_hexmesh_service() {
     clear_screen
     print_banner
     print_header "Restart Hex Mesh Service"
@@ -338,7 +321,7 @@ restart_easymesh_service() {
     press_key
 }
 
-remove_easymesh_service() {
+remove_hexmesh_service() {
     clear_screen
     print_banner
     print_header "Remove Hex Mesh Service"
@@ -424,174 +407,6 @@ view_service_status() {
     press_key
 }
 
-set_watchdog() {
-    clear_screen
-    print_banner
-    print_header "Watchdog Management"
-    
-    view_watchdog_status
-    echo ""
-    echo "Select your option:"
-    echo "1) Create watchdog service"
-    echo "2) Stop & remove watchdog service"
-    echo "3) View Logs"
-    echo "4) Back"
-    echo ""
-    read -rp "Enter your choice: " CHOICE
-    
-    case "$CHOICE" in 
-        1) start_watchdog ;;
-        2) stop_watchdog ;;
-        3) view_logs ;;
-        4) return 0;;
-        *) echo "Invalid option!" && sleep 1 && return 1;;
-    esac
-}
-
-start_watchdog() {
-    clear_screen
-    print_banner
-    print_header "Create Watchdog Service"
-    
-    echo "Important: You can check the status of the service"
-    echo "and restart it if the latency is higher than a certain limit."
-    echo "I recommend to run it only on one server and preferably outside (Kharej) server"
-    echo ""
-    
-    read -rp "Enter the local IP address to monitor: " IP_ADDRESS
-    read -rp "Enter the latency threshold in ms (200): " LATENCY_THRESHOLD
-    read -rp "Enter the time between checks in seconds (8): " CHECK_INTERVAL
-	
-    stop_watchdog
-    touch /etc/monitor.sh /etc/monitor.log >/dev/null 2>&1
-    
-    cat << EOF | tee /etc/monitor.sh > /dev/null
-#!/bin/bash
-
-# Configuration
-IP_ADDRESS="$IP_ADDRESS"
-LATENCY_THRESHOLD=$LATENCY_THRESHOLD
-CHECK_INTERVAL=$CHECK_INTERVAL
-SERVICE_NAME="hexmesh.service"
-LOG_FILE="/etc/monitor.log"
-
-# Function to restart the service
-restart_service() {
-    local restart_time=\$(date +"%Y-%m-%d %H:%M:%S")
-    systemctl restart "\$SERVICE_NAME"
-    if [ \$? -eq 0 ]; then
-        echo "\$restart_time: Service \$SERVICE_NAME restarted successfully." >> "\$LOG_FILE"
-    else
-        echo "\$restart_time: Failed to restart service \$SERVICE_NAME." >> "\$LOG_FILE"
-    fi
-}
-
-# Function to calculate average latency
-calculate_average_latency() {
-    local latencies=(\$(ping -c 3 -W 2 -i 0.2 "\$IP_ADDRESS" | grep 'time=' | sed -n 's/.*time=\([0-9.]*\) ms.*/\1/p'))
-    local total_latency=0
-    local count=\${#latencies[@]}
-
-    for latency in "\${latencies[@]}"; do
-        total_latency=\$(echo "\$total_latency + \$latency" | bc)
-    done
-
-    if [ \$count -gt 0 ]; then
-        local average_latency=\$(echo "scale=2; \$total_latency / \$count" | bc)
-        echo \$average_latency
-    else
-        echo 0
-    fi
-}
-
-# Main monitoring loop
-while true; do
-    # Calculate average latency
-    AVG_LATENCY=\$(calculate_average_latency)
-    
-    if [ "\$AVG_LATENCY" == "0" ]; then
-        echo "\$(date +"%Y-%m-%d %H:%M:%S"): Failed to ping \$IP_ADDRESS. Restarting service..." >> "\$LOG_FILE"
-        restart_service
-    else
-        LATENCY_INT=\${AVG_LATENCY%.*}  # Convert latency to integer for comparison
-        if [ "\$LATENCY_INT" -gt "\$LATENCY_THRESHOLD" ]; then
-            echo "\$(date +"%Y-%m-%d %H:%M:%S"): Average latency \$AVG_LATENCY ms exceeds threshold of \$LATENCY_THRESHOLD ms. Restarting service..." >> "\$LOG_FILE"
-            restart_service
-        fi
-    fi
-
-    # Wait for the specified interval before checking again
-    sleep "\$CHECK_INTERVAL"
-done
-EOF
-
-    echo ""
-    echo "Creating a service for watchdog"
-    echo ""
-    
-    local WATCHDOG_SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service"    
-    cat > "$WATCHDOG_SERVICE_FILE" <<EOF
-[Unit]
-Description=Hex Mesh Watchdog Service
-After=network.target
-
-[Service]
-ExecStart=/bin/bash /etc/monitor.sh
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Execute the script in the background
-    systemctl daemon-reload >/dev/null 2>&1
-    systemctl enable --now hexmesh-watchdog.service >/dev/null 2>&1
-    
-    echo ""
-    echo "✓ Watchdog service started successfully"
-    echo ""
-    press_key
-}
-
-# Function to stop the watchdog
-stop_watchdog() {
-    local WATCHDOG_SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service" 
-    
-    if [[ ! -f "$WATCHDOG_SERVICE_FILE" ]]; then
-        echo "✗ Watchdog service does not exist"
-        sleep 1
-        return 1
-    fi
-    
-    systemctl disable --now hexmesh-watchdog.service >/dev/null 2>&1
-    rm -f /etc/monitor.sh /etc/monitor.log >/dev/null 2>&1 
-    rm -f "$WATCHDOG_SERVICE_FILE" >/dev/null 2>&1 
-    systemctl daemon-reload >/dev/null 2>&1
-    echo "✓ Watchdog service stopped and removed successfully"
-    sleep 2
-}
-
-view_watchdog_status() {
-    if systemctl is-active --quiet "hexmesh-watchdog.service"; then
-        echo "✓ Watchdog service is running"
-    else
-        echo "✗ Watchdog service is not running"
-    fi
-}
-
-# Function to view logs
-view_logs() {
-    clear_screen
-    print_banner
-    print_header "Watchdog Logs"
-    
-    if [ -f /etc/monitor.log ]; then
-        less +G /etc/monitor.log
-    else
-        echo "No logs found."
-        press_key
-    fi
-}
 
 
 # Function to add cron-tab job
@@ -638,7 +453,7 @@ add_cron_job() {
     # Path to reset file
     local reset_path="/root/easytier/reset.sh"
     
-    # Add cron job to kill the running easymesh processes
+    # Add cron job to kill the running hexmesh processes
     cat << EOF > "$reset_path"
 #!/bin/bash
 pids=\$(pgrep easytier)
@@ -726,7 +541,7 @@ check_core_status() {
 }
 
 # New function to remove core
-remove_easymesh_core() {
+remove_hexmesh_core() {
     clear_screen
     print_banner
     print_header "Remove Hex Mesh Core"
@@ -754,25 +569,22 @@ display_menu() {
     
     # Network Section
     echo "Network Management"
-    echo "  [1] Connect       • Setup mesh network"
+    echo "  [1] Connect        • Setup mesh network"
     echo "  [2] Peers          • View connections"
-    echo "  [3] Routes         • Network topology"
-    echo "  [4] Center         • Peer management"
     echo ""
     
     # Service Section
     echo "Service Management"
-    echo "  [5] Secret         • Show credentials"
-    echo "  [6] Status         • Service health"
-    echo "  [7] Watchdog       • Auto-restart"
-    echo "  [8] Cron           • Schedule tasks"
-    echo "  [9] Restart        • Manual restart"
+    echo "  [3] Secret         • Show credentials"
+    echo "  [4] Status         • Service health"
+    echo "  [5] Cron           • Schedule restart"
+    echo "  [6] Restart        • Manual restart"
     echo ""
     
     # Advanced Section
     echo "Advanced"
-    echo "  [10] Remove        • Stop service"
-    echo "  [11] Uninstall     • Remove core"
+    echo "  [7] Stop           • Stop service"
+    echo "  [8] Remove         • Remove core"
     echo ""
     
     echo "[0] Exit"
@@ -787,15 +599,12 @@ read_option() {
     case "$choice" in
         1) connect_network_pool ;;
         2) display_peers ;;
-        3) display_routes ;;
-        4) peer_center ;;
-        5) show_network_secret ;;
-        6) view_service_status ;;
-        7) set_watchdog ;;
-        8) set_cronjob ;;
-        9) restart_easymesh_service ;;
-        10) remove_easymesh_service ;;
-        11) remove_easymesh_core ;;
+        3) show_network_secret ;;
+        4) view_service_status ;;
+        5) set_cronjob ;;
+        6) restart_hexmesh_service ;;
+        7) remove_hexmesh_service ;;
+        8) remove_hexmesh_core ;;
         0) 
             echo ""
             echo "Thanks for using Hex Mesh!"
