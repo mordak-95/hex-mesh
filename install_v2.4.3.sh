@@ -733,16 +733,16 @@ display_menu() {
     
     # Minimal Hex Mesh Banner
     echo ""
-    echo -e "${SEP}╔═════════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${SEP}║                                                                 ║${RESET}"
+    echo -e "${SEP}╔════════════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${SEP}║                                                                    ║${RESET}"
     echo -e "${SEP}║   ${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗   ${CYAN} ███╗   ███╗███████╗███████╗██╗  ██╗   ${SEP}║${RESET}"
     echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝   ${CYAN} ████╗ ████║██╔════╝██╔════╝██║  ██║   ${SEP}║${RESET}"
     echo -e "${SEP}║   ${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝    ${CYAN} ██╔████╔██║█████╗  ███████╗███████║   ${SEP}║${RESET}"
     echo -e "${SEP}║   ${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗    ${CYAN} ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║   ${SEP}║${RESET}"
     echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗   ${CYAN} ██║ ╚═╝ ██║███████╗███████║██║  ██║   ${SEP}║${RESET}"
     echo -e "${SEP}║   ${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ${CYAN} ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ${SEP}║${RESET}"
-    echo -e "${SEP}║                                                                 ║${RESET}"
-    echo -e "${SEP}╚═════════════════════════════════════════════════════════════════╝${RESET}"
+    echo -e "${SEP}║                                                                    ║${RESET}"
+    echo -e "${SEP}╚════════════════════════════════════════════════════════════════════╝${RESET}"
     echo -e "${GRAY} Version: 2.4.3 | GitHub: github.com/mordak-95/hex-mesh${RESET}"
     echo -e "${GRAY} Advanced VPN Mesh Network Solution${RESET}\n"
     
