@@ -74,7 +74,7 @@ print_banner() {
 
 install_easytier() {
     local DEST_DIR="/root/easytier"
-    local FILES=("easytier-core" "easytier-cli" "easytier-web" "easytier-web-embed")
+    local FILES=("easytier-core" "easytier-cli")
     
     # Version 2.4.3 URLs
     local URL_X86="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-x86_64/"
@@ -519,7 +519,7 @@ set_cronjob() {
 
 check_core_status() {
     local DEST_DIR="/root/easytier"
-    local FILES=("easytier-core" "easytier-cli" "easytier-web" "easytier-web-embed")
+    local FILES=("easytier-core" "easytier-cli")
     
     if [ -d "$DEST_DIR" ]; then
         local all_files_exist=true
