@@ -1,282 +1,277 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Check if the script is run as root
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 
-   sleep 1
-   exit 1
-fi
+set -euo pipefail
 
+# Hex Mesh v2.4.3 Installer
+# Advanced VPN Mesh Network Solution
 
-#color codes - Modern Hex Mesh Theme
-MAGENTA="\033[38;5;141m"  # muted orchid
-CYAN="\033[38;5;81m"     # soft teal
-GRAY="\033[38;5;245m"    # neutral gray text
-SEP="\033[38;5;244m"     # subtle separator
-BOLD="\033[1m"
-RESET="\033[0m"
-GREEN="\033[38;5;82m"    # modern green
-YELLOW="\033[38;5;220m"  # warm yellow
-RED="\033[38;5;196m"     # modern red
-BLUE="\033[38;5;75m"     # modern blue
+clear_screen() {
+  if command -v tput >/dev/null 2>&1; then
+    tput reset || printf '\033c'
+  elif command -v clear >/dev/null 2>&1; then
+    clear
+  else
+    printf '\033[2J\033[H'
+  fi
+}
 
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || return 1
+}
 
-# just press key to continue
-press_key(){
- read -p "Press Enter to continue..."
+ensure_dir() {
+  local d="$1"
+  if [ ! -d "$d" ]; then
+    mkdir -p "$d"
+  fi
+}
+
+print_header() {
+  echo ""
+  echo "============================================================"
+  echo "$1"
+  echo "============================================================"
+}
+
+abort() {
+  echo "Error: $1" >&2
+  exit 1
+}
+
+press_key() {
+  read -p "Press Enter to continue..."
 }
 
 
-# Define a function to colorize text
-colorize() {
-    local color="$1"
-    local text="$2"
-    local style="${3:-normal}"
-    
-    # Define ANSI color codes
-    local black="\033[30m"
-    local red="\033[31m"
-    local green="\033[32m"
-    local yellow="\033[33m"
-    local blue="\033[34m"
-    local magenta="\033[35m"
-    local cyan="\033[36m"
-    local white="\033[37m"
-    local reset="\033[0m"
-    
-    # Define ANSI style codes
-    local normal="\033[0m"
-    local bold="\033[1m"
-    local underline="\033[4m"
-    # Select color code
-    local color_code
-    case $color in
-        black) color_code=$black ;;
-        red) color_code=$red ;;
-        green) color_code=$green ;;
-        yellow) color_code=$yellow ;;
-        blue) color_code=$blue ;;
-        magenta) color_code=$magenta ;;
-        cyan) color_code=$cyan ;;
-        white) color_code=$white ;;
-        *) color_code=$reset ;;  # Default case, no color
-    esac
-    # Select style code
-    local style_code
-    case $style in
-        bold) style_code=$bold ;;
-        underline) style_code=$underline ;;
-        normal | *) style_code=$normal ;;  # Default case, normal text
-    esac
+print_banner() {
+  local MAGENTA CYAN GRAY SEP BOLD RESET
+  if [ -t 1 ]; then
+    MAGENTA='\033[38;5;141m'  # muted orchid
+    CYAN='\033[38;5;81m'     # soft teal
+    GRAY='\033[38;5;245m'    # neutral gray text
+    SEP='\033[38;5;244m'     # subtle separator
+    BOLD='\033[1m'
+    RESET='\033[0m'
+  else
+    MAGENTA=''; CYAN=''; GRAY=''; SEP=''; BOLD=''; RESET=''
+  fi
 
-    # Print the colored and styled text
-    echo -e "${style_code}${color_code}${text}${reset}"
+  clear_screen
+  echo ""
+  echo -e "${SEP}╔════════════════════════════════════════════════════════════════════╗${RESET}"
+  echo -e "${SEP}║                                                                    ║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗   ${CYAN} ███╗   ███╗███████╗███████╗██╗  ██╗   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝   ${CYAN} ████╗ ████║██╔════╝██╔════╝██║  ██║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝    ${CYAN} ██╔████╔██║█████╗  ███████╗███████║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗    ${CYAN} ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗   ${CYAN} ██║ ╚═╝ ██║███████╗███████║██║  ██║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ${CYAN} ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ${SEP}║${RESET}"
+  echo -e "${SEP}║                                                                    ║${RESET}"
+  echo -e "${SEP}╚════════════════════════════════════════════════════════════════════╝${RESET}"
+  echo -e "${GRAY} Version: 2.4.3 | GitHub: github.com/mordak-95/hex-mesh${RESET}"
+  echo -e "${GRAY} Advanced VPN Mesh Network Solution${RESET}\n"
 }
 
 install_easytier() {
-    # Define the directory and files
-    DEST_DIR="/root/easytier"
-    FILE1="easytier-core"
-    FILE2="easytier-cli"
-    FILE3="easytier-web"
-    FILE4="easytier-web-embed"
-
-    # Version 2.4.3 URLs
-    URL_X86="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-x86_64/"
-    URL_ARM_SOFT="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-armv7/"              
-    URL_ARM_HARD="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-armv7hf/"
+    local DEST_DIR="/root/easytier"
+    local FILES=("easytier-core" "easytier-cli" "easytier-web" "easytier-web-embed")
     
-    # Check if the directory exists
+    # Version 2.4.3 URLs
+    local URL_X86="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-x86_64/"
+    local URL_ARM_SOFT="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-armv7/"              
+    local URL_ARM_HARD="https://github.com/mordak-95/hex-mesh/raw/main/core/v2.4.3/easytier-linux-armv7hf/"
+    
+    # Check if already installed
     if [ -d "$DEST_DIR" ]; then    
-        # Check if the files exist
-        if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ] && [ -f "$DEST_DIR/$FILE3" ] && [ -f "$DEST_DIR/$FILE4" ]; then
-            colorize green "Hex Mesh Core v2.4.3 Installed" bold
+        local all_files_exist=true
+        for file in "${FILES[@]}"; do
+            if [ ! -f "$DEST_DIR/$file" ]; then
+                all_files_exist=false
+                break
+            fi
+        done
+        
+        if [ "$all_files_exist" = true ]; then
+            echo "✓ Hex Mesh Core v2.4.3 already installed"
             return 0
         fi
     fi
     
-    # Detect the system architecture
+    # Detect system architecture
+    local ARCH
     ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then
-        URL=$URL_X86
-    elif [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "aarch64" ]; then
-        if [ "$(ldd /bin/ls | grep -c 'armhf')" -eq 1 ]; then
-            URL=$URL_ARM_HARD
-        else
-            URL=$URL_ARM_SOFT
+    local URL
+    
+    case "$ARCH" in
+        "x86_64")
+            URL=$URL_X86
+            ;;
+        "armv7l"|"aarch64")
+            if [ "$(ldd /bin/ls | grep -c 'armhf')" -eq 1 ]; then
+                URL=$URL_ARM_HARD
+            else
+                URL=$URL_ARM_SOFT
+            fi
+            ;;
+        *)
+            abort "Unsupported architecture: $ARCH"
+            ;;
+    esac
+
+    print_header "Installing Hex Mesh Core v2.4.3"
+    ensure_dir "$DEST_DIR"
+    
+    echo "Downloading binaries for architecture: $ARCH"
+    for file in "${FILES[@]}"; do
+        echo "  Downloading $file..."
+        if ! curl -fsSL "$URL/$file" -o "$DEST_DIR/$file"; then
+            abort "Failed to download $file"
         fi
-    else
-        colorize red "Unsupported architecture: $ARCH\n" bold
-        return 1
-    fi
-
-
-    mkdir -p $DEST_DIR &> /dev/null
-    colorize yellow "Downloading Hex Mesh Core v2.4.3...\n"
-    curl -Ls "$URL/easytier-cli" -o "$DEST_DIR/easytier-cli"
-    curl -Ls "$URL/easytier-core" -o "$DEST_DIR/easytier-core"
-    curl -Ls "$URL/easytier-web" -o "$DEST_DIR/easytier-web"
-    curl -Ls "$URL/easytier-web-embed" -o "$DEST_DIR/easytier-web-embed"
-
-
-    if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ] && [ -f "$DEST_DIR/$FILE3" ] && [ -f "$DEST_DIR/$FILE4" ]; then
-    	chmod +x "$DEST_DIR/easytier-cli"
-    	chmod +x "$DEST_DIR/easytier-core"
-    	chmod +x "$DEST_DIR/easytier-web"
-    	chmod +x "$DEST_DIR/easytier-web-embed"
-        colorize green "Hex Mesh Core v2.4.3 Installed Successfully...\n" bold
-        sleep 1
-        return 0
-    else
-        colorize red "Failed to install Hex Mesh Core v2.4.3...\n" bold
-        exit 1
-    fi
+        chmod +x "$DEST_DIR/$file"
+    done
+    
+    echo "✓ Hex Mesh Core v2.4.3 installed successfully"
 }
 
 
-
-# Call the function
-install_easytier
 
 generate_random_secret() {
     openssl rand -hex 6
 }
 
+# Install Hex Mesh Core on startup
+install_easytier
+
 #Var
 EASY_CLIENT='/root/easytier/easytier-cli'
 SERVICE_FILE="/etc/systemd/system/hexmesh.service"
     
-connect_network_pool(){
-	clear
-	colorize cyan "Connect to the Mesh Network" bold 
-	echo 
-	colorize yellow "Leave the peer addresses blank to enable reverse mode.
-Ws and wss modes are not recommended for iran's network environment.
-Try disable multi-thread mode if your mesh network is unstable.
-UDP mode is more stable rather than tcp mode.
-	"
-	echo
-    read -p "[-] Enter Peer IPv4/IPv6 Addresses (separate multiple addresses by ','): " PEER_ADDRESSES
+connect_network_pool() {
+    clear_screen
+    print_banner
+    print_header "Connect to the Mesh Network"
     
-    read -p "[*] Enter Local IPv4 Address (e.g., 10.144.144.1): " IP_ADDRESS
-    if [ -z $IP_ADDRESS ]; then
-    	colorize red "Null value. aborting..."
-    	sleep 2
-    	return 1
-    fi
+    echo "Configuration Notes:"
+    echo "• Leave peer addresses blank to enable reverse mode"
+    echo "• WS and WSS modes are not recommended for Iran's network environment"
+    echo "• Try disabling multi-thread mode if your mesh network is unstable"
+    echo "• UDP mode is more stable than TCP mode"
+    echo ""
     
-    read -r -p "[*] Enter Hostname (e.g., Hetnzer): " HOSTNAME
-    if [ -z $HOSTNAME ]; then
-    	colorize red "Null value. aborting..."
-    	sleep 2
-    	return 1
-    fi
+    read -rp "Enter Peer IPv4/IPv6 Addresses (separate multiple addresses by ','): " PEER_ADDRESSES
     
-    read -p "[-] Enter Tunnel Port (Default 2090): " PORT
-    if [ -z $PORT ]; then
-    	colorize red "Default port is 2090..."
-    	PORT='2090'
-    fi
+    read -rp "Enter Local IPv4 Address (e.g., 10.144.144.1): " IP_ADDRESS
+    [[ -z "$IP_ADDRESS" ]] && abort "Local IP address cannot be empty"
     
-	echo ''
+    read -rp "Enter Hostname (e.g., Hetzner): " HOSTNAME
+    [[ -z "$HOSTNAME" ]] && abort "Hostname cannot be empty"
+    
+    read -rp "Enter Tunnel Port (Default 2090): " PORT
+    PORT=${PORT:-2090}
+    
+    echo ""
     NETWORK_SECRET=$(generate_random_secret)
-    colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
+    echo "✓ Generated Network Secret: $NETWORK_SECRET"
+    
     while true; do
-    read -p "[*] Enter Network Secret (recommend using a strong password): " NETWORK_SECRET
-    if [[ -n $NETWORK_SECRET ]]; then
-        break
-    else
-        colorize red "Network secret cannot be empty. Please enter a valid secret.\n"
-    fi
-	done
-	
-
-	echo ''
-    colorize green "[-] Select Default Protocol:" bold
+        read -rp "Enter Network Secret (recommend using a strong password): " NETWORK_SECRET
+        if [[ -n "$NETWORK_SECRET" ]]; then
+            break
+        else
+            echo "Network secret cannot be empty. Please enter a valid secret."
+        fi
+    done
+    
+    echo ""
+    echo "Select Default Protocol:"
     echo "1) tcp"
     echo "2) udp"
     echo "3) ws"
     echo "4) wss"
-    read -p "[*] Select your desired protocol (e.g., 1 for tcp): " PROTOCOL_CHOICE
-	
-    case $PROTOCOL_CHOICE in
+    read -rp "Select your desired protocol (e.g., 1 for tcp): " PROTOCOL_CHOICE
+    
+    case "$PROTOCOL_CHOICE" in
         1) DEFAULT_PROTOCOL="tcp" ;;
         2) DEFAULT_PROTOCOL="udp" ;;
         3) DEFAULT_PROTOCOL="ws" ;;
         4) DEFAULT_PROTOCOL="wss" ;;
-        *) colorize red "Invalid choice. Defaulting to tcp." ; DEFAULT_PROTOCOL="tcp" ;;
+        *) echo "Invalid choice. Defaulting to tcp."; DEFAULT_PROTOCOL="tcp" ;;
     esac
-	
-	echo 
-	read -p "[-] Enable encryption? (yes/no): " ENCRYPTION_CHOICE
-	case $ENCRYPTION_CHOICE in
-        [Nn]*)
-        	ENCRYPTION_OPTION="--disable-encryption"
-        	colorize yellow "Encryption is disabled"
-       		 ;;
-   		*)
-       		ENCRYPTION_OPTION=""
-       		colorize yellow "Encryption is enabled"
-             ;;
-	esac
-	
-	echo
-	
-	read -p "[-] Enable multi-thread? (yes/no): " MULTI_THREAD
-	case $MULTI_THREAD in
-        [Nn]*)
-        	MULTI_THREAD=""
-        	colorize yellow "Multi-thread is disabled"
-       		 ;;
-   		*)
-       		MULTI_THREAD="--multi-thread"
-       		colorize yellow "Multi-thread is enabled"
-             ;;
-	esac
-	
-	echo
-	
-	read -p "[-] Enable IPv6? (yes/no): " IPV6_MODE
-	case $IPV6_MODE in
-        [Nn]*)
-        	IPV6_MODE="--disable-ipv6"
-        	colorize yellow "IPv6 is disabled"
-       		 ;;
-   		*)
-       		IPV6_MODE=""
-       		colorize yellow "IPv6 is enabled"
-             ;;
-	esac
-	
-	echo
     
-    IFS=',' read -ra ADDR_ARRAY <<< "$PEER_ADDRESSES"
-    PROCESSED_ADDRESSES=()
-    for ADDRESS in "${ADDR_ARRAY[@]}"; do
-        ADDRESS=$(echo $ADDRESS | xargs)
-        
-        if [[ "$ADDRESS" == *:* ]]; then
-            if [[ "$ADDRESS" != \[*\] ]]; then
-                ADDRESS="[$ADDRESS]"
+    echo ""
+    read -rp "Enable encryption? (yes/no): " ENCRYPTION_CHOICE
+    case "$ENCRYPTION_CHOICE" in
+        [Nn]*) 
+            ENCRYPTION_OPTION="--disable-encryption"
+            echo "Encryption is disabled"
+            ;;
+        *) 
+            ENCRYPTION_OPTION=""
+            echo "Encryption is enabled"
+            ;;
+    esac
+    
+    echo ""
+    read -rp "Enable multi-thread? (yes/no): " MULTI_THREAD
+    case "$MULTI_THREAD" in
+        [Nn]*) 
+            MULTI_THREAD=""
+            echo "Multi-thread is disabled"
+            ;;
+        *) 
+            MULTI_THREAD="--multi-thread"
+            echo "Multi-thread is enabled"
+            ;;
+    esac
+    
+    echo ""
+    read -rp "Enable IPv6? (yes/no): " IPV6_MODE
+    case "$IPV6_MODE" in
+        [Nn]*) 
+            IPV6_MODE="--disable-ipv6"
+            echo "IPv6 is disabled"
+            ;;
+        *) 
+            IPV6_MODE=""
+            echo "IPv6 is enabled"
+            ;;
+    esac
+    
+    echo ""
+    
+    # Process peer addresses
+    local PROCESSED_ADDRESSES=()
+    if [[ -n "$PEER_ADDRESSES" ]]; then
+        IFS=',' read -ra ADDR_ARRAY <<< "$PEER_ADDRESSES"
+        for ADDRESS in "${ADDR_ARRAY[@]}"; do
+            ADDRESS=$(echo "$ADDRESS" | xargs)
+            
+            if [[ "$ADDRESS" == *:* ]]; then
+                if [[ "$ADDRESS" != \[*\] ]]; then
+                    ADDRESS="[$ADDRESS]"
+                fi
             fi
-        fi
+        
+            if [[ -n "$ADDRESS" ]]; then
+                PROCESSED_ADDRESSES+=("${DEFAULT_PROTOCOL}://${ADDRESS}:${PORT}")
+            fi
+        done
+    fi
     
-        if [ ! -z "$ADDRESS" ]; then
-            PROCESSED_ADDRESSES+=("${DEFAULT_PROTOCOL}://${ADDRESS}:${PORT}")
-        fi
-    done
-    
+    local JOINED_ADDRESSES
     JOINED_ADDRESSES=$(IFS=' '; echo "${PROCESSED_ADDRESSES[*]}")
     
-    if [ ! -z "$JOINED_ADDRESSES" ]; then
+    local PEER_ADDRESS=""
+    if [[ -n "$JOINED_ADDRESSES" ]]; then
         PEER_ADDRESS="--peers ${JOINED_ADDRESSES}"
     fi
     
-    LISTENERS="--listeners ${DEFAULT_PROTOCOL}://[::]:${PORT} ${DEFAULT_PROTOCOL}://0.0.0.0:${PORT}"
+    local LISTENERS="--listeners ${DEFAULT_PROTOCOL}://[::]:${PORT} ${DEFAULT_PROTOCOL}://0.0.0.0:${PORT}"
     
-    SERVICE_FILE="/etc/systemd/system/hexmesh.service"
+    print_header "Creating Hex Mesh Service"
     
-cat > $SERVICE_FILE <<EOF
+    # Create systemd service file
+    cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=Hex Mesh Network Service v2.4.3
 After=network.target
@@ -290,162 +285,191 @@ WantedBy=multi-user.target
 EOF
 
     # Reload systemd, enable and start the service
-    sudo systemctl daemon-reload &> /dev/null
-    sudo systemctl enable hexmesh.service &> /dev/null
-    sudo systemctl start hexmesh.service &> /dev/null
+    systemctl daemon-reload >/dev/null 2>&1
+    systemctl enable hexmesh.service >/dev/null 2>&1
+    systemctl start hexmesh.service >/dev/null 2>&1
 
-    colorize green "Hex Mesh Network Service v2.4.3 Started.\n" bold
-	press_key
+    echo "✓ Hex Mesh Network Service v2.4.3 started successfully"
+    press_key
 }
 
 
-display_peers()
-{	
-	watch -n1 $EASY_CLIENT peer	
+display_peers() {
+    clear_screen
+    print_banner
+    print_header "Network Peers"
+    echo "Press Ctrl+C to return to main menu"
+    echo ""
+    watch -n1 "$EASY_CLIENT" peer
 }
-display_routes(){
 
-	watch -n1 $EASY_CLIENT route	
+display_routes() {
+    clear_screen
+    print_banner
+    print_header "Network Routes"
+    echo "Press Ctrl+C to return to main menu"
+    echo ""
+    watch -n1 "$EASY_CLIENT" route
 }
 
-peer_center(){
-
-	watch -n1 $EASY_CLIENT peer-center	
+peer_center() {
+    clear_screen
+    print_banner
+    print_header "Peer Center"
+    echo "Press Ctrl+C to return to main menu"
+    echo ""
+    watch -n1 "$EASY_CLIENT" peer-center
 }
 
 restart_easymesh_service() {
-	echo ''
-	if [[ ! -f $SERVICE_FILE ]]; then
-		colorize red "	Hex Mesh service does not exists." bold
-		sleep 1
-		return 1
-	fi
-    colorize yellow "	Restarting Hex Mesh service...\n" bold
-    sudo systemctl restart hexmesh.service &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        colorize green "	Hex Mesh service restarted successfully." bold
-    else
-        colorize red "	Failed to restart Hex Mesh service." bold
+    clear_screen
+    print_banner
+    print_header "Restart Hex Mesh Service"
+    
+    if [[ ! -f "$SERVICE_FILE" ]]; then
+        echo "✗ Hex Mesh service does not exist"
+        press_key
+        return 1
     fi
-    echo ''
-	 read -p "	Press Enter to continue..."
+    
+    echo "Restarting Hex Mesh service..."
+    if systemctl restart hexmesh.service >/dev/null 2>&1; then
+        echo "✓ Hex Mesh service restarted successfully"
+    else
+        echo "✗ Failed to restart Hex Mesh service"
+    fi
+    
+    press_key
 }
 
 remove_easymesh_service() {
-	echo
-	if [[ ! -f $SERVICE_FILE ]]; then
-		 colorize red "	EasyMesh service does not exists." bold
-		 sleep 1
-		 return 1
-	fi
-    colorize yellow "	Stopping Hex Mesh service..." bold
-    sudo systemctl stop hexmesh.service &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        colorize green "	Hex Mesh service stopped successfully.\n"
-    else
-        colorize red "	Failed to stop Hex Mesh service.\n"
-        sleep 2
-        return 1
-    fi
-
-    colorize yellow "	Disabling Hex Mesh service..." bold
-    sudo systemctl disable hexmesh.service &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        colorize green "	Hex Mesh service disabled successfully.\n"
-    else
-        colorize red "	Failed to disable Hex Mesh service.\n"
-        sleep 2
-        return 1
-    fi
-
-    colorize yellow "	Removing Hex Mesh service..." bold
-    sudo rm /etc/systemd/system/hexmesh.service &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        colorize green "	Hex Mesh service removed successfully.\n"
-    else
-        colorize red "	Failed to remove Hex Mesh service.\n"
-        sleep 2
-        return 1
-    fi
-
-    colorize yellow "	Reloading systemd daemon..." bold
-    sudo systemctl daemon-reload
-    if [[ $? -eq 0 ]]; then
-        colorize green "	Systemd daemon reloaded successfully.\n"
-    else
-        colorize red "	Failed to reload systemd daemon.\n"
-        sleep 2
+    clear_screen
+    print_banner
+    print_header "Remove Hex Mesh Service"
+    
+    if [[ ! -f "$SERVICE_FILE" ]]; then
+        echo "✗ Hex Mesh service does not exist"
+        press_key
         return 1
     fi
     
- read -p "	Press Enter to continue..."
+    echo "Stopping Hex Mesh service..."
+    if systemctl stop hexmesh.service >/dev/null 2>&1; then
+        echo "✓ Hex Mesh service stopped successfully"
+    else
+        echo "✗ Failed to stop Hex Mesh service"
+        press_key
+        return 1
+    fi
+
+    echo "Disabling Hex Mesh service..."
+    if systemctl disable hexmesh.service >/dev/null 2>&1; then
+        echo "✓ Hex Mesh service disabled successfully"
+    else
+        echo "✗ Failed to disable Hex Mesh service"
+        press_key
+        return 1
+    fi
+
+    echo "Removing Hex Mesh service..."
+    if rm -f "$SERVICE_FILE" >/dev/null 2>&1; then
+        echo "✓ Hex Mesh service removed successfully"
+    else
+        echo "✗ Failed to remove Hex Mesh service"
+        press_key
+        return 1
+    fi
+
+    echo "Reloading systemd daemon..."
+    if systemctl daemon-reload >/dev/null 2>&1; then
+        echo "✓ Systemd daemon reloaded successfully"
+    else
+        echo "✗ Failed to reload systemd daemon"
+        press_key
+        return 1
+    fi
+    
+    press_key
 }
 
 show_network_secret() {
-	echo ''
-    if [[ -f $SERVICE_FILE ]]; then
-        NETWORK_SECRET=$(grep -oP '(?<=--network-secret )[^ ]+' $SERVICE_FILE)
+    clear_screen
+    print_banner
+    print_header "Network Secret"
+    
+    if [[ -f "$SERVICE_FILE" ]]; then
+        local NETWORK_SECRET
+        NETWORK_SECRET=$(grep -oP '(?<=--network-secret )[^ ]+' "$SERVICE_FILE" 2>/dev/null || echo "")
         
-        if [[ -n $NETWORK_SECRET ]]; then
-            colorize cyan "	Network Secret Key: $NETWORK_SECRET" bold
+        if [[ -n "$NETWORK_SECRET" ]]; then
+            echo "Network Secret Key: $NETWORK_SECRET"
         else
-            colorize red "	Network Secret key not found" bold
+            echo "✗ Network Secret key not found"
         fi
     else
-        colorize red "	Hex Mesh service does not exists." bold
+        echo "✗ Hex Mesh service does not exist"
     fi
-    echo ''
-    read -p "	Press Enter to continue..."
-   
     
+    press_key
 }
 
 view_service_status() {
-	if [[ ! -f $SERVICE_FILE ]]; then
-		 colorize red "	Hex Mesh service does not exists." bold
-		 sleep 1
-		 return 1
-	fi
-	clear
-    sudo systemctl status hexmesh.service
+    clear_screen
+    print_banner
+    print_header "Service Status"
+    
+    if [[ ! -f "$SERVICE_FILE" ]]; then
+        echo "✗ Hex Mesh service does not exist"
+        press_key
+        return 1
+    fi
+    
+    systemctl status hexmesh.service
+    press_key
 }
 
-set_watchdog(){
-	clear
-	view_watchdog_status
-	echo "---------------------------------------------"
-	echo 
-	colorize cyan "Select your option:" bold
-	colorize green "1) Create watchdog service"
-	colorize red "2) Stop & remove watchdog service"
-    colorize yellow "3) View Logs"
-    colorize reset "4) Back"
-    echo ''
-    read -p "Enter your choice: " CHOICE
-    case $CHOICE in 
-    	1) start_watchdog ;;
-    	2) stop_watchdog ;;
-    	3) view_logs ;;
-    	4) return 0;;
-    	*) colorize red "Invalid option!" bold && sleep 1 && return 1;;
+set_watchdog() {
+    clear_screen
+    print_banner
+    print_header "Watchdog Management"
+    
+    view_watchdog_status
+    echo ""
+    echo "Select your option:"
+    echo "1) Create watchdog service"
+    echo "2) Stop & remove watchdog service"
+    echo "3) View Logs"
+    echo "4) Back"
+    echo ""
+    read -rp "Enter your choice: " CHOICE
+    
+    case "$CHOICE" in 
+        1) start_watchdog ;;
+        2) stop_watchdog ;;
+        3) view_logs ;;
+        4) return 0;;
+        *) echo "Invalid option!" && sleep 1 && return 1;;
     esac
-
 }
 
-start_watchdog(){
-	clear
-	colorize cyan "Important: You can check the status of the service \nand restart it if the latency is higher than a certain limit. \nI recommend to run it only on one server and preferably outside (Kharej) server" bold
-	echo ''
+start_watchdog() {
+    clear_screen
+    print_banner
+    print_header "Create Watchdog Service"
+    
+    echo "Important: You can check the status of the service"
+    echo "and restart it if the latency is higher than a certain limit."
+    echo "I recommend to run it only on one server and preferably outside (Kharej) server"
+    echo ""
+    
+    read -rp "Enter the local IP address to monitor: " IP_ADDRESS
+    read -rp "Enter the latency threshold in ms (200): " LATENCY_THRESHOLD
+    read -rp "Enter the time between checks in seconds (8): " CHECK_INTERVAL
 	
-	read -p "Enter the local IP address to monitor: " IP_ADDRESS
-	read -p "Enter the latency threshold in ms (200): " LATENCY_THRESHOLD
-	read -p "Enter the time between checks in seconds (8): " CHECK_INTERVAL
-	
-	
-	stop_watchdog
-	touch /etc/monitor.sh /etc/monitor.log &> /dev/null
-	
-cat << EOF | sudo tee /etc/monitor.sh > /dev/null
+    stop_watchdog
+    touch /etc/monitor.sh /etc/monitor.log >/dev/null 2>&1
+    
+    cat << EOF | tee /etc/monitor.sh > /dev/null
 #!/bin/bash
 
 # Configuration
@@ -458,7 +482,7 @@ LOG_FILE="/etc/monitor.log"
 # Function to restart the service
 restart_service() {
     local restart_time=\$(date +"%Y-%m-%d %H:%M:%S")
-    sudo systemctl restart "\$SERVICE_NAME"
+    systemctl restart "\$SERVICE_NAME"
     if [ \$? -eq 0 ]; then
         echo "\$restart_time: Service \$SERVICE_NAME restarted successfully." >> "\$LOG_FILE"
     else
@@ -505,13 +529,12 @@ while true; do
 done
 EOF
 
-
-	echo
-	colorize yellow "Creating a service for watchdog" bold
-	echo
+    echo ""
+    echo "Creating a service for watchdog"
+    echo ""
     
-SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service"    
-cat > $SERVICE_FILE <<EOF
+    local WATCHDOG_SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service"    
+    cat > "$WATCHDOG_SERVICE_FILE" <<EOF
 [Unit]
 Description=Hex Mesh Watchdog Service
 After=network.target
@@ -524,66 +547,68 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
 
-	# Execute the script in the background
+    # Execute the script in the background
     systemctl daemon-reload >/dev/null 2>&1
-	systemctl enable --now hexmesh-watchdog.service
-	
-    echo
-    colorize green "Watchdog service started successfully" bold
-    echo
-press_key
+    systemctl enable --now hexmesh-watchdog.service >/dev/null 2>&1
+    
+    echo ""
+    echo "✓ Watchdog service started successfully"
+    echo ""
+    press_key
 }
 
 # Function to stop the watchdog
 stop_watchdog() {
-	echo 
-	SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service" 
-	
-	if [[ ! -f $SERVICE_FILE ]]; then
-		 colorize red "Watchdog service does not exists." bold
-		 sleep 1
-		 return 1
-	fi
-	
-    systemctl disable --now hexmesh-watchdog.service &> /dev/null
-    rm -f /etc/monitor.sh /etc/monitor.log &> /dev/null 
-    rm -f "$SERVICE_FILE"  &> /dev/null 
-    systemctl daemon-reload &> /dev/null
-    colorize yellow "Watchdog service stopped and removed successfully" bold
-    echo
+    local WATCHDOG_SERVICE_FILE="/etc/systemd/system/hexmesh-watchdog.service" 
+    
+    if [[ ! -f "$WATCHDOG_SERVICE_FILE" ]]; then
+        echo "✗ Watchdog service does not exist"
+        sleep 1
+        return 1
+    fi
+    
+    systemctl disable --now hexmesh-watchdog.service >/dev/null 2>&1
+    rm -f /etc/monitor.sh /etc/monitor.log >/dev/null 2>&1 
+    rm -f "$WATCHDOG_SERVICE_FILE" >/dev/null 2>&1 
+    systemctl daemon-reload >/dev/null 2>&1
+    echo "✓ Watchdog service stopped and removed successfully"
     sleep 2
 }
 
-view_watchdog_status(){
-	if systemctl is-active --quiet "hexmesh-watchdog.service"; then
-				colorize green "	Watchdog service is running" bold
-			else
-				colorize red "	Watchdog service is not running" bold
-	fi		
-
+view_watchdog_status() {
+    if systemctl is-active --quiet "hexmesh-watchdog.service"; then
+        echo "✓ Watchdog service is running"
+    else
+        echo "✗ Watchdog service is not running"
+    fi
 }
+
 # Function to view logs
 view_logs() {
+    clear_screen
+    print_banner
+    print_header "Watchdog Logs"
+    
     if [ -f /etc/monitor.log ]; then
         less +G /etc/monitor.log
     else
-    	echo ''
-        colorize yellow "No logs found.\n" bold
+        echo "No logs found."
         press_key
     fi
-    
 }
 
 
 # Function to add cron-tab job
 add_cron_job() {
-	echo 
-
-	local service_name="hexmesh.service"
-	
+    clear_screen
+    print_banner
+    print_header "Add Cron Job"
+    
+    local service_name="hexmesh.service"
+    
     # Prompt user to choose a restart time interval
-    colorize cyan "Select the restart time interval:" bold
-    echo
+    echo "Select the restart time interval:"
+    echo ""
     echo "1. Every 30th minute"
     echo "2. Every 1 hour"
     echo "3. Every 2 hours"
@@ -591,59 +616,46 @@ add_cron_job() {
     echo "5. Every 6 hours"
     echo "6. Every 12 hours"
     echo "7. Every 24 hours"
-    echo
-    read -p "Enter your choice: " time_choice
+    echo ""
+    read -rp "Enter your choice: " time_choice
+    
     # Validate user input for restart time interval
-    case $time_choice in
-        1)
-            restart_time="*/30 * * * *"
-            ;;
-        2)
-            restart_time="0 * * * *"
-            ;;
-        3)
-            restart_time="0 */2 * * *"
-            ;;
-        4)
-            restart_time="0 */4 * * *"
-            ;;
-        5)
-            restart_time="0 */6 * * *"
-            ;;
-        6)
-            restart_time="0 */12 * * *"
-            ;;
-        7)
-            restart_time="0 0 * * *"
-            ;;
+    local restart_time
+    case "$time_choice" in
+        1) restart_time="*/30 * * * *" ;;
+        2) restart_time="0 * * * *" ;;
+        3) restart_time="0 */2 * * *" ;;
+        4) restart_time="0 */4 * * *" ;;
+        5) restart_time="0 */6 * * *" ;;
+        6) restart_time="0 */12 * * *" ;;
+        7) restart_time="0 0 * * *" ;;
         *)
-            echo -e "${RED}Invalid choice. Please enter a number between 1 and 7.${NC}\n"
+            echo "Invalid choice. Please enter a number between 1 and 7."
             sleep 2
             return 1
             ;;
     esac
 
-
-    # remove cronjob created by this script
-    delete_cron_job > /dev/null 2>&1
+    # Remove existing cronjob created by this script
+    delete_cron_job >/dev/null 2>&1
     
     # Path to reset file
     local reset_path="/root/easytier/reset.sh"
     
-    #add cron job to kill the running easymesh processes
+    # Add cron job to kill the running easymesh processes
     cat << EOF > "$reset_path"
-#! /bin/bash
+#!/bin/bash
 pids=\$(pgrep easytier)
-sudo kill -9 \$pids
-sudo systemctl daemon-reload
-sudo systemctl restart $service_name
+kill -9 \$pids 2>/dev/null || true
+systemctl daemon-reload
+systemctl restart $service_name
 EOF
 
-    # make it +x
+    # Make it executable
     chmod +x "$reset_path"
     
     # Save existing crontab to a temporary file
-    crontab -l > /tmp/crontab.tmp
+    crontab -l >/tmp/crontab.tmp 2>/dev/null || touch /tmp/crontab.tmp
 
     # Append the new cron job to the temporary file
     echo "$restart_time $reset_path #$service_name" >> /tmp/crontab.tmp
@@ -652,136 +664,131 @@ EOF
     crontab /tmp/crontab.tmp
 
     # Remove the temporary file
-    rm /tmp/crontab.tmp
+    rm -f /tmp/crontab.tmp
     
-    echo
-    colorize green "Cron-job added successfully to restart the service '$service_name'." bold
+    echo ""
+    echo "✓ Cron-job added successfully to restart the service '$service_name'"
     sleep 2
 }
 
 delete_cron_job() {
-    echo
+    clear_screen
+    print_banner
+    print_header "Delete Cron Job"
+    
     local service_name="hexmesh.service"
     local reset_path="/root/easytier/reset.sh"
     
-    crontab -l | grep -v "#$service_name" | crontab -
+    crontab -l 2>/dev/null | grep -v "#$service_name" | crontab - 2>/dev/null || true
     rm -f "$reset_path" >/dev/null 2>&1
     
-    colorize green "Cron job for $service_name deleted successfully." bold
-    
+    echo "✓ Cron job for $service_name deleted successfully"
     sleep 2
 }
 
-set_cronjob(){
-   	clear
-   	colorize cyan "Cron-job setting menu" bold
-   	echo 
+set_cronjob() {
+    clear_screen
+    print_banner
+    print_header "Cron Job Management"
    	
-   	colorize green "1) Add a new cronjob"
-   	colorize red "2) Delete existing cronjob"
-   	colorize reset "3) Return..."
+    echo "Select your option:"
+    echo "1) Add a new cronjob"
+    echo "2) Delete existing cronjob"
+    echo "3) Return..."
+    echo ""
+    read -rp "Select your option [1-3]: " choice
    	
-   	echo
-   	echo -ne "Select you option [1-3]: "
-   	read -r choice
-   	
-   	case $choice in 
-   		1) add_cron_job ;;
-   		2) delete_cron_job ;;
-   		3) return 0 ;;
-   		*) colorize red "Invalid option!" && sleep 1 && return 1 ;;
-   	esac
-   	
+    case "$choice" in 
+        1) add_cron_job ;;
+        2) delete_cron_job ;;
+        3) return 0 ;;
+        *) echo "Invalid option!" && sleep 1 && return 1 ;;
+    esac
 }
 
-check_core_status(){
-    DEST_DIR="/root/easytier"
-    FILE1="easytier-core"
-    FILE2="easytier-cli"
-    FILE3="easytier-web"
-    FILE4="easytier-web-embed"
+check_core_status() {
+    local DEST_DIR="/root/easytier"
+    local FILES=("easytier-core" "easytier-cli" "easytier-web" "easytier-web-embed")
     
-        if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ] && [ -f "$DEST_DIR/$FILE3" ] && [ -f "$DEST_DIR/$FILE4" ]; then
-        colorize green "Hex Mesh Core v2.4.3 Installed" bold
-        return 0
-    else
-        colorize red "Hex Mesh Core v2.4.3 not found" bold
-        return 1
+    if [ -d "$DEST_DIR" ]; then
+        local all_files_exist=true
+        for file in "${FILES[@]}"; do
+            if [ ! -f "$DEST_DIR/$file" ]; then
+                all_files_exist=false
+                break
+            fi
+        done
+        
+        if [ "$all_files_exist" = true ]; then
+            echo "✓ Hex Mesh Core v2.4.3 Installed"
+            return 0
+        fi
     fi
+    
+    echo "✗ Hex Mesh Core v2.4.3 not found"
+    return 1
 }
 
 # New function to remove core
-remove_easymesh_core(){
-	echo
-	
-	if [[ ! -d '/root/easytier' ]]; then
-		 colorize red "	Hex Mesh directory not found." bold
-		 sleep 2
-		 return 1
-	fi
-	
-	
-	rm -rf /root/easytier &> /dev/null
-	
-	colorize green "	Hex Mesh core deleted successfully." bold
-	sleep 2
-
+remove_easymesh_core() {
+    clear_screen
+    print_banner
+    print_header "Remove Hex Mesh Core"
+    
+    if [[ ! -d '/root/easytier' ]]; then
+        echo "✗ Hex Mesh directory not found"
+        sleep 2
+        return 1
+    fi
+    
+    rm -rf /root/easytier >/dev/null 2>&1
+    echo "✓ Hex Mesh core deleted successfully"
+    sleep 2
 }
 # Function to display menu
 display_menu() {
-    clear
-    
-    # Minimal Hex Mesh Banner
-    echo ""
-    echo -e "${SEP}╔════════════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${SEP}║                                                                    ║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗   ${CYAN} ███╗   ███╗███████╗███████╗██╗  ██╗   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝   ${CYAN} ████╗ ████║██╔════╝██╔════╝██║  ██║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝    ${CYAN} ██╔████╔██║█████╗  ███████╗███████║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗    ${CYAN} ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗   ${CYAN} ██║ ╚═╝ ██║███████╗███████║██║  ██║   ${SEP}║${RESET}"
-    echo -e "${SEP}║   ${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ${CYAN} ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ${SEP}║${RESET}"
-    echo -e "${SEP}║                                                                    ║${RESET}"
-    echo -e "${SEP}╚════════════════════════════════════════════════════════════════════╝${RESET}"
-    echo -e "${GRAY} Version: 2.4.3 | GitHub: github.com/mordak-95/hex-mesh${RESET}"
-    echo -e "${GRAY} Advanced VPN Mesh Network Solution${RESET}\n"
+    clear_screen
+    print_banner
     
     # Status
-    echo -e "${SEP}┌─ Status: $(check_core_status)${SEP}┐${RESET}"
+    echo "============================================================"
+    echo "Status: $(check_core_status)"
+    echo "============================================================"
     echo ""
     
-    # Minimal Menu
-    echo -e "${BOLD}${CYAN}Network${RESET}"
-    echo -e "  ${GREEN}[1]${RESET} Connect       ${GRAY}•${RESET} ${GRAY}Setup mesh network${RESET}"
-    echo -e "  ${BLUE}[2]${RESET} Peers          ${GRAY}•${RESET} ${GRAY}View connections${RESET}"
-    echo -e "  ${CYAN}[3]${RESET} Routes         ${GRAY}•${RESET} ${GRAY}Network topology${RESET}"
-    echo -e "  ${MAGENTA}[4]${RESET} Center      ${GRAY}•${RESET} ${GRAY}Peer management${RESET}"
+    # Network Section
+    echo "Network Management"
+    echo "  [1] Connect       • Setup mesh network"
+    echo "  [2] Peers          • View connections"
+    echo "  [3] Routes         • Network topology"
+    echo "  [4] Center         • Peer management"
     echo ""
     
-    echo -e "${BOLD}${YELLOW}Service${RESET}"
-    echo -e "  ${GRAY}[5]${RESET} Secret         ${GRAY}•${RESET} ${GRAY}Show credentials${RESET}"
-    echo -e "  ${GRAY}[6]${RESET} Status         ${GRAY}•${RESET} ${GRAY}Service health${RESET}"
-    echo -e "  ${YELLOW}[7]${RESET} Watchdog     ${GRAY}•${RESET} ${GRAY}Auto-restart${RESET}"
-    echo -e "  ${GRAY}[8]${RESET} Cron           ${GRAY}•${RESET} ${GRAY}Schedule tasks${RESET}"
-    echo -e "  ${YELLOW}[9]${RESET} Restart      ${GRAY}•${RESET} ${GRAY}Manual restart${RESET}"
+    # Service Section
+    echo "Service Management"
+    echo "  [5] Secret         • Show credentials"
+    echo "  [6] Status         • Service health"
+    echo "  [7] Watchdog       • Auto-restart"
+    echo "  [8] Cron           • Schedule tasks"
+    echo "  [9] Restart        • Manual restart"
     echo ""
     
-    echo -e "${BOLD}${RED}Advanced${RESET}"
-    echo -e "  ${RED}[10]${RESET} Remove         ${GRAY}•${RESET} ${GRAY}Stop service${RESET}"
-    echo -e "  ${MAGENTA}[11]${RESET} Uninstall  ${GRAY}•${RESET} ${GRAY}Remove core${RESET}"
+    # Advanced Section
+    echo "Advanced"
+    echo "  [10] Remove        • Stop service"
+    echo "  [11] Uninstall     • Remove core"
     echo ""
     
-    echo -e "${GRAY}[0] Exit${RESET}"
+    echo "[0] Exit"
     echo ""
 }
 
 
 # Function to read user input
 read_option() {
-    echo -en "${BOLD}${CYAN}→${RESET} "
-    read -p '' choice 
+    read -rp "Enter your choice: " choice 
     
-    case $choice in
+    case "$choice" in
         1) connect_network_pool ;;
         2) display_peers ;;
         3) display_routes ;;
@@ -795,19 +802,23 @@ read_option() {
         11) remove_easymesh_core ;;
         0) 
             echo ""
-            echo -e "${GRAY}Thanks for using Hex Mesh!${RESET}"
+            echo "Thanks for using Hex Mesh!"
             exit 0 
             ;;
         *) 
-            echo -e "${RED}✗ Invalid option${RESET}"
+            echo "✗ Invalid option"
             sleep 1 
             ;;
     esac
 }
 
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+    abort "This script must be run as root"
+fi
+
 # Main script
-while true
-do
+while true; do
     display_menu
     read_option
 done
