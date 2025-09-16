@@ -60,12 +60,12 @@ print_banner() {
   echo ""
   echo -e "${SEP}╔════════════════════════════════════════════════════════════════════╗${RESET}"
   echo -e "${SEP}║                                                                    ║${RESET}"
-  echo -e "${SEP}║   ${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗   ${CYAN} ███╗   ███╗███████╗███████╗██╗  ██╗   ${SEP}║${RESET}"
-  echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝   ${CYAN} ████╗ ████║██╔════╝██╔════╝██║  ██║   ${SEP}║${RESET}"
-  echo -e "${SEP}║   ${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝    ${CYAN} ██╔████╔██║█████╗  ███████╗███████║   ${SEP}║${RESET}"
-  echo -e "${SEP}║   ${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗    ${CYAN} ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║   ${SEP}║${RESET}"
-  echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗   ${CYAN} ██║ ╚═╝ ██║███████╗███████║██║  ██║   ${SEP}║${RESET}"
-  echo -e "${SEP}║   ${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ${CYAN} ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██╗  ██╗███████╗██╗  ██╗  ${CYAN} ███╗   ███╗███████╗███████╗██╗  ██╗   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║██╔════╝╚██╗██╔╝  ${CYAN} ████╗ ████║██╔════╝██╔════╝██║  ██║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}███████║█████╗   ╚███╔╝   ${CYAN} ██╔████╔██║█████╗  ███████╗███████║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██╔══██║██╔══╝   ██╔██╗   ${CYAN} ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}██║  ██║███████╗██╔╝ ██╗  ${CYAN} ██║ ╚═╝ ██║███████╗███████║██║  ██║   ${SEP}║${RESET}"
+  echo -e "${SEP}║   ${MAGENTA}${BOLD}╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝  ${CYAN} ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ${SEP}║${RESET}"
   echo -e "${SEP}║                                                                    ║${RESET}"
   echo -e "${SEP}╚════════════════════════════════════════════════════════════════════╝${RESET}"
   echo -e "${GRAY} Version: 2.4.3 | GitHub: github.com/mordak-95/hex-mesh${RESET}"
@@ -152,22 +152,41 @@ connect_network_pool() {
     print_header "Connect to the Mesh Network"
     
     echo "Configuration Notes:"
-    echo "• Leave peer addresses blank to enable reverse mode"
     echo "• WS and WSS modes are not recommended for Iran's network environment"
-    echo "• Try disabling multi-thread mode if your mesh network is unstable"
     echo "• UDP mode is more stable than TCP mode"
     echo ""
     
-    read -rp "Enter Peer IPv4/IPv6 Addresses (separate multiple addresses by ','): " PEER_ADDRESSES
+    # Ask user if they want to create new mesh or join existing
+    echo "Select mesh network type:"
+    echo "1) Create new mesh network"
+    echo "2) Join existing mesh network"
+    echo ""
+    read -rp "Enter your choice (1 or 2): " MESH_TYPE
     
-    read -rp "Enter Local IPv4 Address (e.g., 10.144.144.1): " IP_ADDRESS
+    case "$MESH_TYPE" in
+        1)
+            echo "Creating new mesh network..."
+            PEER_ADDRESSES=""
+            ;;
+        2)
+            echo "Joining existing mesh network..."
+            read -rp "Enter Peer IPv4/IPv6 Address (IP of one of the mesh nodes): " PEER_ADDRESSES
+            [[ -z "$PEER_ADDRESSES" ]] && abort "Peer address cannot be empty"
+            ;;
+        *)
+            abort "Invalid choice. Please select 1 or 2"
+            ;;
+    esac
+    
+    echo ""
+    read -rp "Enter Local IPv4 Address (e.g., 172.17.17.101): " IP_ADDRESS
     [[ -z "$IP_ADDRESS" ]] && abort "Local IP address cannot be empty"
     
-    read -rp "Enter Hostname (e.g., Hetzner): " HOSTNAME
+    read -rp "Enter Hostname (e.g., IrNode): " HOSTNAME
     [[ -z "$HOSTNAME" ]] && abort "Hostname cannot be empty"
     
-    read -rp "Enter Tunnel Port (Default 2090): " PORT
-    PORT=${PORT:-2090}
+    read -rp "Enter Tunnel Port (Default 3033): " PORT
+    PORT=${PORT:-3033}
     
     echo ""
     NETWORK_SECRET=$(generate_random_secret)
@@ -199,43 +218,26 @@ connect_network_pool() {
     esac
     
     echo ""
-    read -rp "Enable encryption? (yes/no): " ENCRYPTION_CHOICE
+    read -rp "Enable encryption? (yes/no) [default: no]: " ENCRYPTION_CHOICE
+    ENCRYPTION_CHOICE=${ENCRYPTION_CHOICE:-no}
     case "$ENCRYPTION_CHOICE" in
-        [Nn]*) 
-            ENCRYPTION_OPTION="--disable-encryption"
-            echo "Encryption is disabled"
-            ;;
-        *) 
+        [Yy]*) 
             ENCRYPTION_OPTION=""
             echo "Encryption is enabled"
             ;;
-    esac
-    
-    echo ""
-    read -rp "Enable multi-thread? (yes/no): " MULTI_THREAD
-    case "$MULTI_THREAD" in
-        [Nn]*) 
-            MULTI_THREAD=""
-            echo "Multi-thread is disabled"
-            ;;
         *) 
-            MULTI_THREAD="--multi-thread"
-            echo "Multi-thread is enabled"
+            ENCRYPTION_OPTION="--disable-encryption"
+            echo "Encryption is disabled"
             ;;
     esac
     
-    echo ""
-    read -rp "Enable IPv6? (yes/no): " IPV6_MODE
-    case "$IPV6_MODE" in
-        [Nn]*) 
-            IPV6_MODE="--disable-ipv6"
-            echo "IPv6 is disabled"
-            ;;
-        *) 
-            IPV6_MODE=""
-            echo "IPv6 is enabled"
-            ;;
-    esac
+    # Set multi-thread to disabled by default (no user prompt)
+    MULTI_THREAD=""
+    echo "Multi-thread is disabled"
+    
+    # Set IPv6 to disabled by default (no user prompt)
+    IPV6_MODE="--disable-ipv6"
+    echo "IPv6 is disabled"
     
     echo ""
     
