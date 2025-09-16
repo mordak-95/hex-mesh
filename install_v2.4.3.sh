@@ -151,10 +151,6 @@ connect_network_pool() {
     print_banner
     print_header "Connect to the Mesh Network"
     
-    echo "Configuration Notes:"
-    echo "• WS and WSS modes are not recommended for Iran's network environment"
-    echo "• UDP mode is more stable than TCP mode"
-    echo ""
     
     # Ask user if they want to create new mesh or join existing
     echo "Select mesh network type:"
@@ -233,11 +229,9 @@ connect_network_pool() {
     
     # Set multi-thread to disabled by default (no user prompt)
     MULTI_THREAD=""
-    echo "Multi-thread is disabled"
     
     # Set IPv6 to disabled by default (no user prompt)
     IPV6_MODE="--disable-ipv6"
-    echo "IPv6 is disabled"
     
     echo ""
     
